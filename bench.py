@@ -971,8 +971,19 @@ def break_to_sentinel(match):
     return f" <<<BREAK:{ms}>>> "
 
 
+STANDALONE_PAUSE_RE = re.compile(r"[ \t]*\n\s*(\[(?:long )?pause\])[ \t]*(?=\n|$)")
+
+
 def synth_v3(text, voice_id, voice_settings, out_path, pause_ms, long_pause_ms, log):
     raw = text.strip().replace("[breath]", " ")
+    # a pause tag written on its own line is glued to the end of the line
+    # before it. standing alone the tag loses its context and the model
+    # sometimes speaks it or glitches a word coming out of the silence,
+    # inline after a sentence is the validated safe position
+    glued = STANDALONE_PAUSE_RE.subn(r" \1", raw)
+    if glued[1]:
+        raw = glued[0]
+        log.append(f"{glued[1]} standalone pause tags glued to the line before them")
     raw = BREAK_CLOSE_RE.sub(" ", raw)
     break_tags = len(BREAK_TAG_RE.findall(raw))
     raw = BREAK_TAG_RE.sub(break_to_sentinel, raw)
@@ -2289,6 +2300,3 @@ def serve_ui():
     if HTML_PATH.exists():
         return FileResponse(str(HTML_PATH), media_type="text/html", headers={"Cache-Control": "no-store"})
     return JSONResponse({"error": "bench.html not found"}, status_code=404)
-
-
-# updated on softspeech, reordering
