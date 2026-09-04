@@ -38,23 +38,30 @@ DB_PATH = DATA_DIR / "bench.db"
 for folder in (DATA_DIR, AUDIO_DIR, MUSIC_DIR, CONTEXT_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="Stimgen v2")
+app = FastAPI(title="Stimgen 3")
 
-# how much context text can go into one generation, across all selected files
+# context docs: per doc caps by size class, one shared total cap
 CONTEXT_CHAR_CAP = 80000
+DOC_CLASS_CAPS = {"small": 10000, "medium": 20000, "large": 40000}
+CONTEXT_GROUPS = ("substance", "form", "technique")
 
-# the tags you can put on an experiment, the frontend colours them
-TAGS = [
-    "day 1 pick",
-    "day 2 pick",
-    "day 3 pick",
-    "day 4 pick",
-    "day 5 pick",
-    "best so far",
-    "chills",
-    "close, needs work",
-    "rejected",
-]
+TAGS = ["Reject", "Good", "Best so far"]
+
+# one time translation of the v2 tag set, runs at every start, harmless when done
+OLD_TAG_MAP = {
+    "rejected": "Reject",
+    "best so far": "Best so far",
+    "chills": "Good",
+    "close, needs work": "Good",
+    "day 1 pick": "Good",
+    "day 2 pick": "Good",
+    "day 3 pick": "Good",
+    "day 4 pick": "Good",
+    "day 5 pick": "Good",
+}
+
+MODELS = ["claude-opus-4-8", "claude-fable-5", "claude-sonnet-4-6"]
+AUTOGEN_MODEL = "claude-haiku-4-5-20251001"
 
 SEED_VOICES = [
     ("Christian", "lMILJ9d29MrRXy9BIgcz"),
@@ -132,6 +139,13 @@ def init_db():
             voice_id text not null
         )
     """)
+    connection.execute("""
+        create table if not exists compose_state (
+            id integer primary key check (id = 1),
+            state text not null,
+            updated_at text not null
+        )
+    """)
 
     # columns added after the first version, safe to run every start
     add_column(connection, "experiments", "mix_source", "text default ''")
@@ -152,9 +166,32 @@ def init_db():
     add_column(connection, "experiments", "mix_profile", "text default ''")
     add_column(connection, "experiments", "prompt_source", "text default ''")
 
-    # every old row belongs to a one day protocol of its own
+    # stimgen 3 columns
+    add_column(connection, "experiments", "questions", "text default '[]'")
+    add_column(connection, "experiments", "doc_html", "text default ''")
+    add_column(connection, "experiments", "balance_db", "real")
+    add_column(connection, "experiments", "fade_in_s", "real")
+    add_column(connection, "experiments", "fade_out_s", "real")
+    add_column(connection, "experiments", "pause_ms", "integer")
+    add_column(connection, "experiments", "long_pause_ms", "integer")
+    add_column(connection, "context_files", "size_class", "text default ''")
+
     connection.execute("update experiments set protocol_id = id where protocol_id is null")
     connection.execute("update experiments set day_number = 1 where day_number is null")
+
+    # v2 to v3 migrations
+    for old_tag, new_tag in OLD_TAG_MAP.items():
+        connection.execute("update experiments set tag = ? where tag = ?", (new_tag, old_tag))
+    connection.execute("update context_files set kind = 'substance' where kind = 'reference'")
+    connection.execute("update context_files set kind = 'form' where kind = 'example'")
+    rows = connection.execute(
+        "select id, chars from context_files where size_class = '' or size_class is null"
+    ).fetchall()
+    for row in rows:
+        connection.execute(
+            "update context_files set size_class = ? where id = ?",
+            (size_class_for(row["chars"] or 0), row["id"]),
+        )
 
     seeded = connection.execute("select count(*) as n from voices").fetchone()["n"]
     if seeded == 0:
@@ -171,6 +208,14 @@ def init_db():
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def size_class_for(chars):
+    if chars <= DOC_CLASS_CAPS["small"]:
+        return "small"
+    if chars <= DOC_CLASS_CAPS["medium"]:
+        return "medium"
+    return "large"
 
 
 # audio helpers, ported from the main repo so pasted mix.py files work standalone
@@ -192,7 +237,6 @@ def duration_ms(segment):
 
 
 def measure_lufs(segment):
-    # returns integrated loudness, or None when the file is too quiet to measure
     try:
         import pyloudnorm
         raw = np.frombuffer(segment.raw_data, dtype=np.int16).astype(np.float64) / 32768.0
@@ -214,7 +258,6 @@ def normalize_lufs(segment, target_lufs):
 
 
 def content_duration_sec(music_path):
-    # same measurement as the repo's audio.py, scans back from the end for where sound stops
     try:
         segment = load_audio(music_path)
         total_ms = len(segment)
@@ -261,7 +304,6 @@ def register_repo_modules():
 
 
 register_repo_modules()
-init_db()
 
 
 # exec loaders for pasted files
@@ -287,8 +329,6 @@ PROMPT_NAMES = (
 
 
 def load_prompt_file(code, topic):
-    # returns system prompt, user prompt, which variable it came from, and the
-    # file's own validate function when it has one
     try:
         namespace = exec_pasted(code, "pasted_prompt")
     except Exception as error:
@@ -303,7 +343,6 @@ def load_prompt_file(code, topic):
             source_name = name
             break
     if system_prompt is None:
-        # fall back to the largest string in the file
         candidates = [(k, v) for k, v in namespace.items()
                       if isinstance(v, str) and len(v) > 200 and not k.startswith("__")]
         if candidates:
@@ -331,7 +370,6 @@ def load_prompt_file(code, topic):
 
 
 def call_builder(builder, topic):
-    # fill the first parameter with the topic, give sane values to the rest
     signature = inspect.signature(builder)
     arguments = {}
     first = True
@@ -357,7 +395,6 @@ def call_builder(builder, topic):
 
 
 def run_validate(validate, script):
-    # the prompt file's own quality check, never allowed to break generation
     if validate is None:
         return ""
     try:
@@ -389,21 +426,24 @@ def load_mix_function(code):
 
 
 def default_mix(voice_path, music_path, out_path,
-                music_premix_gain_db=-14.0, voice_target_lufs=None, **_):
+                music_premix_gain_db=-14.0, fade_in_s=None, fade_out_s=None, **_):
     # plain fallback used when the mix box is empty, plays the full music track
     voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
-    if voice_target_lufs is not None:
-        voice = normalize_lufs(voice, float(voice_target_lufs))
     if music_path and Path(music_path).exists():
         music = make_stereo(load_audio(music_path).set_frame_rate(44100))
         music = music.apply_gain(float(music_premix_gain_db))
         if len(music) < len(voice):
             loops = len(voice) // len(music) + 1
             music = (music * loops)[:len(voice) + 3000]
-        music = music.fade_out(2000)
         mixed = music.overlay(voice)
     else:
         mixed = voice
+    if fade_in_s:
+        mixed = mixed.fade_in(int(float(fade_in_s) * 1000))
+    if fade_out_s:
+        mixed = mixed.fade_out(int(float(fade_out_s) * 1000))
+    elif music_path and Path(music_path).exists():
+        mixed = mixed.fade_out(2000)
     mixed.export(out_path, format="mp3", bitrate="256k")
     return len(mixed)
 
@@ -413,19 +453,23 @@ from pydub import AudioSegment
 from pathlib import Path
 
 def mix(voice_path, music_path, out_path,
-        music_premix_gain_db=-14.0, voice_target_lufs=None, **_):
+        music_premix_gain_db=-14.0, fade_in_s=None, fade_out_s=None, **_):
     voice = AudioSegment.from_file(voice_path).set_frame_rate(44100).set_channels(2)
-    # voice_target_lufs normalization is applied by the bench when set
     if music_path and Path(music_path).exists():
         music = AudioSegment.from_file(music_path).set_frame_rate(44100).set_channels(2)
         music = music.apply_gain(float(music_premix_gain_db))
         if len(music) < len(voice):
             loops = len(voice) // len(music) + 1
             music = (music * loops)[:len(voice) + 3000]
-        music = music.fade_out(2000)
         mixed = music.overlay(voice)
     else:
         mixed = voice
+    if fade_in_s:
+        mixed = mixed.fade_in(int(float(fade_in_s) * 1000))
+    if fade_out_s:
+        mixed = mixed.fade_out(int(float(fade_out_s) * 1000))
+    elif music_path and Path(music_path).exists():
+        mixed = mixed.fade_out(2000)
     mixed.export(out_path, format="mp3", bitrate="256k")
 """
 
@@ -439,9 +483,7 @@ def mix_source_for(mix_py, music_path):
 
 
 def explicit_params(function):
-    # names the function actually declares, ignoring **kwargs. mix_v45 ends in
-    # **_ignored, so anything not declared is swallowed without an error and
-    # settings would silently do nothing.
+    # names the function actually declares, ignoring **kwargs
     try:
         signature = inspect.signature(function)
     except Exception:
@@ -462,7 +504,7 @@ def pre_gain_file(source_path, gain_db, scratch_dir, label):
 
 
 def run_mix(mix_function, voice_path, music_path, out_path, settings, log):
-    # settings holds music_gain_db, voice_lufs, sync_mode, mix_profile, any may be None
+    # settings holds balance_db, fade_in_s, fade_out_s, any may be None
     content_sec = None
     if music_path and Path(str(music_path)).exists():
         content_sec = content_duration_sec(music_path)
@@ -480,52 +522,33 @@ def run_mix(mix_function, voice_path, music_path, out_path, settings, log):
         else:
             dropped.append("content_duration_sec")
 
-    music_gain = settings.get("music_gain_db")
-    voice_lufs = settings.get("voice_lufs")
-    sync_mode = settings.get("sync_mode")
-    mix_profile = settings.get("mix_profile")
+    balance = settings.get("balance_db")
+    fade_in = settings.get("fade_in_s")
+    fade_out = settings.get("fade_out_s")
 
-    if music_gain is not None:
+    if balance is not None:
         if "music_premix_gain_db" in accepted:
-            kwargs["music_premix_gain_db"] = music_gain
-            log.append(f"music gain {music_gain} dB passed as music_premix_gain_db")
+            kwargs["music_premix_gain_db"] = balance
+            log.append(f"balance {balance} dB passed as music_premix_gain_db")
         else:
             dropped.append("music_premix_gain_db")
-    if voice_lufs is not None:
-        if "voice_target_lufs" in accepted:
-            kwargs["voice_target_lufs"] = voice_lufs
-            log.append(f"voice level {voice_lufs} LUFS passed as voice_target_lufs")
-        else:
-            dropped.append("voice_target_lufs")
-    if sync_mode:
-        if "sync_mode" in accepted:
-            kwargs["sync_mode"] = sync_mode
-            log.append(f"sync mode {sync_mode}")
-        else:
-            dropped.append("sync_mode")
-    if mix_profile:
-        if "mix_profile" in accepted:
-            kwargs["mix_profile"] = mix_profile
-            log.append(f"mix profile {mix_profile}")
-        else:
-            dropped.append("mix_profile")
+    fades_accepted = "fade_in_s" in accepted or "fade_out_s" in accepted
+    if fade_in is not None and "fade_in_s" in accepted:
+        kwargs["fade_in_s"] = fade_in
+        log.append(f"fade in {fade_in} s passed to the mix")
+    if fade_out is not None and "fade_out_s" in accepted:
+        kwargs["fade_out_s"] = fade_out
+        log.append(f"fade out {fade_out} s passed to the mix")
 
     scratch = tempfile.mkdtemp(prefix="bench_mix_")
     effective_voice = str(voice_path)
     effective_music = str(music_path) if music_path else ""
 
     try:
-        # fallback path: the mix has no gain arguments, so gain the input files
-        if music_gain is not None and "music_premix_gain_db" not in accepted and effective_music:
-            effective_music = pre_gain_file(effective_music, music_gain, scratch, "music")
-            log.append(f"music gain {music_gain} dB applied to the input file instead, "
-                       "the mix may renormalize and cancel it")
-        if voice_lufs is not None and "voice_target_lufs" not in accepted:
-            segment = normalize_lufs(load_audio(effective_voice), float(voice_lufs))
-            target = Path(scratch) / "voice_gained.wav"
-            segment.export(target, format="wav")
-            effective_voice = str(target)
-            log.append(f"voice normalized to {voice_lufs} LUFS on the input file instead, "
+        # fallback path: the mix has no balance argument, so gain the music file
+        if balance is not None and "music_premix_gain_db" not in accepted and effective_music:
+            effective_music = pre_gain_file(effective_music, balance, scratch, "music")
+            log.append(f"balance {balance} dB applied to the music file instead, "
                        "the mix may renormalize and cancel it")
 
         if dropped:
@@ -541,7 +564,6 @@ def run_mix(mix_function, voice_path, music_path, out_path, settings, log):
                     **kwargs,
                 )
         except TypeError as error:
-            # a mix that does not take keyword arguments at all
             log.append(f"keyword call rejected ({error}), retrying positionally")
             with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
                 returned = mix_function(effective_voice, effective_music, str(out_path))
@@ -557,7 +579,6 @@ def run_mix(mix_function, voice_path, music_path, out_path, settings, log):
     except HTTPException:
         raise
     except Exception as error:
-        printed = ""
         log.append("mix failed")
         log.append(traceback.format_exc().strip())
         shutil.rmtree(scratch, ignore_errors=True)
@@ -567,6 +588,19 @@ def run_mix(mix_function, voice_path, music_path, out_path, settings, log):
 
     if not Path(out_path).exists():
         raise HTTPException(500, "mix ran but produced no output file")
+
+    # fades the mix could not take are applied to the finished file
+    if (fade_in is not None or fade_out is not None) and not fades_accepted:
+        try:
+            segment = load_audio(out_path)
+            if fade_in is not None:
+                segment = segment.fade_in(int(float(fade_in) * 1000))
+            if fade_out is not None:
+                segment = segment.fade_out(int(float(fade_out) * 1000))
+            segment.export(out_path, format="mp3", bitrate="256k")
+            log.append("fades applied to the output file, the mix had no fade arguments")
+        except Exception as error:
+            log.append(f"fade on the output failed: {error}")
 
 
 def describe_audio(path, label, log):
@@ -588,7 +622,7 @@ def describe_audio(path, label, log):
 RETRYABLE = {429, 500, 502, 503, 504, 529}
 
 
-def call_claude(model, system_prompt, user_prompt):
+def call_claude(model, system_prompt, user_prompt, max_tokens=4096):
     if not ANTHROPIC_API_KEY:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not set on the server")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -597,7 +631,7 @@ def call_claude(model, system_prompt, user_prompt):
         try:
             message = client.messages.create(
                 model=model,
-                max_tokens=4096,
+                max_tokens=max_tokens,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
@@ -614,20 +648,432 @@ def call_claude(model, system_prompt, user_prompt):
     raise HTTPException(502, f"claude call failed: {last_error}")
 
 
-# elevenlabs tts, same chunking and pause handling as production
+AUTOGEN_SYSTEM = (
+    "You write a short realistic test answer to an onboarding question for a "
+    "meditation app, in the first person. Two or three sentences, plain everyday "
+    "language, specific rather than generic. Output only the answer."
+)
+
+
+UPDATE_PROMPT_SYSTEM = """You revise a python prompt file for a meditation speech generator.
+
+You get the current prompt file, the speech it produced, and the editor's feedback on that speech: passages marked good, passages marked bad, comments on them, and text the editor typed directly into the speech.
+
+Rewrite the prompt file so future speeches keep doing what was marked good and stop doing what was marked bad. Fold the intent of the comments and the typed edits into the instructions. Change only what the feedback justifies, and keep everything else exactly as it was. The file must stay a working python file: keep its structure, variable names, and any build_user_prompt or validate functions intact.
+
+Output the complete revised python file and nothing else. No code fences, no explanation before or after."""
+
+
+def build_feedback_prompt(prompt_py, original_speech, final_speech, marks, edits):
+    pieces = ["CURRENT PROMPT FILE\n" + prompt_py.strip()]
+    if original_speech.strip():
+        pieces.append("SPEECH IT PRODUCED\n" + original_speech.strip())
+    good = [m for m in marks if m.get("sentiment") == "good"]
+    bad = [m for m in marks if m.get("sentiment") == "bad"]
+    if good:
+        lines = []
+        for mark in good:
+            line = f'- "{(mark.get("text") or "").strip()}"'
+            if (mark.get("comment") or "").strip():
+                line += f' (comment: {mark["comment"].strip()})'
+            lines.append(line)
+        pieces.append("MARKED GOOD, keep doing this\n" + "\n".join(lines))
+    if bad:
+        lines = []
+        for mark in bad:
+            line = f'- "{(mark.get("text") or "").strip()}"'
+            if (mark.get("comment") or "").strip():
+                line += f' (comment: {mark["comment"].strip()})'
+            lines.append(line)
+        pieces.append("MARKED BAD, stop doing this\n" + "\n".join(lines))
+    if edits:
+        pieces.append("TYPED EDITS, text the editor wrote into the speech by hand\n"
+                      + "\n".join(f'- "{e.strip()}"' for e in edits if e.strip()))
+    if final_speech.strip() and final_speech.strip() != original_speech.strip():
+        pieces.append("FINAL EDITED SPEECH\n" + final_speech.strip())
+    return "\n\n".join(pieces)
+
+
+def strip_code_fences(text):
+    text = text.strip()
+    text = re.sub(r"^```[a-zA-Z]*\s*\n", "", text)
+    text = re.sub(r"\n```\s*$", "", text)
+    return text.strip()
+
+
+# elevenlabs tts
+# v3 path: no splitting at pauses. [pause] and [long pause] go to the model
+# inline, the model renders the gap, and the rendered gap is then cut or
+# extended to the exact length set in the mix panel. splits happen only for
+# length, at paragraph boundaries first. chunks come back as pcm where the
+# account tier allows and are joined in the sample domain with short fades.
+# noise reduction is off on this path, it suppresses the audio around every
+# join and swallows the word before a pause.
+# v2 path: unchanged. ssml breaks up to 3s are rendered natively, everything
+# else becomes inserted silence.
 
 SENTENCE_SPLIT = re.compile(r"(?<=[\.\!\?])\s+")
+PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
 PAUSE_TOKEN = "[pause]"
 LONG_PAUSE_TOKEN = "[long pause]"
+PAUSE_ANY_RE = re.compile(r"\[long pause\]|\[pause\]")
 BREAK_TAG_RE = re.compile(r'<break\s+time="([0-9.]+)\s*(ms|s)"\s*/?\s*>', re.IGNORECASE)
 BREAK_CLOSE_RE = re.compile(r"</\s*break\s*>", re.IGNORECASE)
+SENTINEL_RE = re.compile(r"(<<<BREAK:\d+>>>)")
 MAX_CHARS = 3200
-PAUSE_MS = 3000
-LONG_PAUSE_MS = 6000
+V3_MAX_CHARS = 5000
+DEFAULT_PAUSE_MS = 3000
+DEFAULT_LONG_PAUSE_MS = 6000
 CHUNK_GAP_MS = 350
+JOIN_FADE_MS = 15
+PAUSE_DETECT_MS = 1200
+PAUSE_SILENCE_DBFS = -45.0
+PAUSE_FRAME_MS = 5
+ZC_SEARCH_MS = 2
+FORMAT_CANDIDATES = ("pcm_44100", "pcm_24000", "mp3_44100_128")
+OUT_RATE = 44100
 
 
-def split_chunks(text, max_chars=MAX_CHARS):
+def atomic_units(text, max_chars):
+    # (separator, unit) pairs no longer than max_chars. paragraphs stay whole
+    # where they fit, over long paragraphs break into sentences, over long
+    # sentences are hard split
+    units = []
+    for paragraph in PARAGRAPH_SPLIT.split(text):
+        paragraph = paragraph.strip()
+        if not paragraph:
+            continue
+        if len(paragraph) <= max_chars:
+            units.append(("\n\n", paragraph))
+            continue
+        separator = "\n\n"
+        for sentence in SENTENCE_SPLIT.split(paragraph):
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            if len(sentence) <= max_chars:
+                units.append((separator, sentence))
+            else:
+                for i in range(0, len(sentence), max_chars):
+                    units.append((separator if i == 0 else "", sentence[i:i + max_chars]))
+            separator = " "
+    return units
+
+
+def split_for_length(text, max_chars=MAX_CHARS):
+    # greedy pack of units into the smallest number of chunks under the cap.
+    # pause tags are not split points, they ride along inside the text
+    max_chars = max(1, min(max_chars, V3_MAX_CHARS))
+    text = text.strip()
+    if len(text) <= max_chars:
+        return [text] if text else []
+    chunks = []
+    current = ""
+    for separator, unit in atomic_units(text, max_chars):
+        candidate = unit if not current else current + separator + unit
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current)
+            current = unit
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def looks_like_format_rejection(status, body):
+    if status not in (403, 422):
+        return False
+    lowered = (body or "").lower()
+    return "format" in lowered or "subscription_required" in lowered
+
+
+class FormatUnsupported(Exception):
+    pass
+
+
+def synth_chunk_v3(text, voice_id, voice_settings, output_format):
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
+    headers = {"xi-api-key": ELEVENLABS_API_KEY, "accept": "*/*", "Content-Type": "application/json"}
+    payload = {"text": text, "model_id": "eleven_v3", "voice_settings": voice_settings}
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            response = requests.post(url, headers=headers, json=payload,
+                                     params={"output_format": output_format},
+                                     stream=True, timeout=120)
+            if response.status_code in (429, 500, 502, 503, 504):
+                last_error = Exception(f"elevenlabs http {response.status_code}")
+                if attempt < 3:
+                    time.sleep(1.5 ** attempt)
+                    continue
+                response.raise_for_status()
+            if response.status_code in (403, 422):
+                body = ""
+                try:
+                    body = response.text
+                except Exception:
+                    pass
+                if looks_like_format_rejection(response.status_code, body):
+                    raise FormatUnsupported(f"output_format {output_format} rejected: {body[:160]}")
+            response.raise_for_status()
+            buffer = io.BytesIO()
+            for piece in response.iter_content(16384):
+                if piece:
+                    buffer.write(piece)
+            return buffer.getvalue()
+        except FormatUnsupported:
+            raise
+        except requests.RequestException as error:
+            last_error = error
+            if attempt < 3:
+                time.sleep(1.5 ** attempt)
+                continue
+            raise HTTPException(502, f"tts failed: {error}")
+    raise HTTPException(502, f"tts failed: {last_error}")
+
+
+def synth_chunk_autoformat(text, voice_id, voice_settings, known_format, log):
+    # probe the account tier once per synth run, then reuse the format
+    candidates = [known_format] if known_format else list(FORMAT_CANDIDATES)
+    last = None
+    for candidate in candidates:
+        try:
+            return synth_chunk_v3(text, voice_id, voice_settings, candidate), candidate
+        except FormatUnsupported as error:
+            last = error
+            log.append(f"{error}, trying the next output format")
+    raise HTTPException(502, f"no usable output format for this account: {last}")
+
+
+def decode_blob(raw, output_format):
+    # pcm is used as is, mp3 is decoded exactly once
+    if output_format.startswith("pcm_"):
+        rate = int(output_format.split("_")[1])
+        return np.frombuffer(raw, dtype="<i2").astype(np.float32), rate
+    segment = AudioSegment.from_file(io.BytesIO(raw), format="mp3").set_channels(1)
+    return np.array(segment.get_array_of_samples(), dtype=np.float32), segment.frame_rate
+
+
+def raised_cosine(n, rising):
+    t = np.linspace(0.0, 1.0, n, endpoint=False, dtype=np.float32)
+    window = 0.5 * (1.0 - np.cos(np.pi * t))
+    return window if rising else window[::-1].copy()
+
+
+def join_chunks(chunks, rate, gap_ms):
+    # chunks come back hard truncated at full level, butting them clicks,
+    # so fade both sides of every join
+    if len(chunks) == 1:
+        return chunks[0]
+    n = min(int(rate * JOIN_FADE_MS / 1000), min(len(c) for c in chunks) // 2)
+    n = max(n, 1)
+    gap = int(rate * max(0, gap_ms) / 1000)
+    parts = []
+    silence = np.zeros(gap, dtype=np.float32)
+    for index, chunk in enumerate(chunks):
+        chunk = chunk.copy()
+        if index > 0:
+            chunk[:n] *= raised_cosine(n, rising=True)
+        if index < len(chunks) - 1:
+            chunk[-n:] *= raised_cosine(n, rising=False)
+        parts.append(chunk)
+        if index < len(chunks) - 1:
+            parts.append(silence)
+    return np.concatenate(parts)
+
+
+def find_pauses(samples, rate, min_ms=PAUSE_DETECT_MS):
+    # silent runs longer than min_ms as [start_ms, end_ms] pairs, frame rms
+    # in numpy because pydub's detector is too slow on long takes
+    hop = max(1, int(rate * PAUSE_FRAME_MS / 1000))
+    frames_count = len(samples) // hop
+    if frames_count == 0:
+        return []
+    frames = samples[: frames_count * hop].reshape(frames_count, hop).astype(np.float64)
+    db_levels = 20 * np.log10(np.sqrt((frames ** 2).mean(axis=1)) / 32768.0 + 1e-12)
+    quiet = db_levels < PAUSE_SILENCE_DBFS
+    runs = []
+    i = 0
+    while i < frames_count:
+        if not quiet[i]:
+            i += 1
+            continue
+        j = i
+        while j < frames_count and quiet[j]:
+            j += 1
+        if (j - i) * PAUSE_FRAME_MS >= min_ms:
+            runs.append([i * PAUSE_FRAME_MS, j * PAUSE_FRAME_MS])
+        i = j
+    return runs
+
+
+def near_zero(samples, index, radius):
+    lo = max(0, index - radius)
+    hi = min(len(samples), index + radius + 1)
+    if hi <= lo:
+        return min(max(index, 0), len(samples))
+    return lo + int(np.argmin(np.abs(samples[lo:hi])))
+
+
+def normalize_pauses(samples, rate, targets_ms, log):
+    # drive every rendered pause to its own target length, cutting at zero
+    # crossings. fail safe: if the count of long silences does not match the
+    # count of pause tags, the audio is returned untouched rather than risk
+    # cutting speech
+    if not targets_ms:
+        return samples
+    runs = find_pauses(samples, rate)
+    if len(runs) != len(targets_ms):
+        log.append(f"pause normalisation skipped, found {len(runs)} long silences "
+                   f"for {len(targets_ms)} pause tags, audio left as rendered")
+        return samples
+    radius = max(1, int(rate * ZC_SEARCH_MS / 1000))
+    parts = []
+    cursor = 0
+    for (start_ms, end_ms), target_ms in zip(runs, targets_ms):
+        a = int(start_ms * rate / 1000)
+        b = min(len(samples), int(end_ms * rate / 1000))
+        have = b - a
+        target = int(round(rate * target_ms / 1000))
+        mid = (a + b) // 2
+        if have > target:
+            excess = have - target
+            cut_a = near_zero(samples, mid - excess // 2, radius)
+            cut_b = near_zero(samples, cut_a + excess, radius)
+            cut_a = max(cursor, min(cut_a, b))
+            cut_b = max(cut_a, min(cut_b, b))
+            parts.append(samples[cursor:cut_a])
+            cursor = cut_b
+        elif have < target:
+            insert_at = near_zero(samples, mid, radius)
+            insert_at = max(cursor, min(insert_at, len(samples)))
+            parts.append(samples[cursor:insert_at])
+            parts.append(np.zeros(target - have, dtype=np.float32))
+            cursor = insert_at
+    parts.append(samples[cursor:])
+    out = np.concatenate(parts)
+    log.append(f"{len(targets_ms)} pauses set to their exact lengths")
+    return out
+
+
+def break_to_sentinel(match):
+    value = float(match.group(1))
+    ms = int(value) if match.group(2).lower() == "ms" else int(value * 1000)
+    return f" <<<BREAK:{ms}>>> "
+
+
+def synth_v3(text, voice_id, voice_settings, out_path, pause_ms, long_pause_ms, log):
+    raw = text.strip().replace("[breath]", " ")
+    raw = BREAK_CLOSE_RE.sub(" ", raw)
+    break_tags = len(BREAK_TAG_RE.findall(raw))
+    raw = BREAK_TAG_RE.sub(break_to_sentinel, raw)
+
+    long_count = raw.count(LONG_PAUSE_TOKEN)
+    short_count = len(PAUSE_ANY_RE.findall(raw)) - long_count
+    log.append(f"markers found: {break_tags} break tags, {long_count} [long pause], {short_count} [pause]")
+    log.append(f"[pause] {pause_ms} ms, [long pause] {long_pause_ms} ms, set in the mix panel")
+
+    tokens = []
+    for part in SENTINEL_RE.split(raw):
+        if part.startswith("<<<BREAK:"):
+            tokens.append(("break", int(part[9:-3])))
+            continue
+        part = part.strip()
+        if part:
+            tokens.append(("speech", part))
+
+    known_format = None
+    rate = None
+    rendered = []
+    api_calls = 0
+    inserted_silence_ms = 0
+
+    for kind, value in tokens:
+        if kind == "break":
+            rendered.append(("break", value))
+            inserted_silence_ms += value
+            continue
+        targets = [long_pause_ms if match.group(0) == LONG_PAUSE_TOKEN else pause_ms
+                   for match in PAUSE_ANY_RE.finditer(value)]
+        api_text = value.replace(LONG_PAUSE_TOKEN, PAUSE_TOKEN)
+        chunks = split_for_length(api_text)
+        decoded = []
+        for index, chunk in enumerate(chunks):
+            log.append(f"tts call {api_calls + 1}, {len(chunk)} chars")
+            print(f"tts chunk {index + 1}/{len(chunks)}, {len(chunk)} chars")
+            blob, known_format = synth_chunk_autoformat(chunk, voice_id, voice_settings, known_format, log)
+            samples, chunk_rate = decode_blob(blob, known_format)
+            if rate is None:
+                rate = chunk_rate
+                log.append(f"audio format {known_format}")
+            decoded.append(samples)
+            api_calls += 1
+        if len(chunks) > 1:
+            inserted_silence_ms += CHUNK_GAP_MS * (len(chunks) - 1)
+        joined = join_chunks(decoded, rate, CHUNK_GAP_MS)
+        joined = normalize_pauses(joined, rate, targets, log)
+        rendered.append(("audio", joined))
+
+    if rate is None:
+        raise HTTPException(400, "speech text is empty after cleanup")
+
+    pieces = []
+    for kind, value in rendered:
+        if kind == "break":
+            pieces.append(np.zeros(int(rate * value / 1000), dtype=np.float32))
+        else:
+            pieces.append(value)
+    full = np.concatenate(pieces)
+
+    seams = max(0, api_calls - 1)
+    log.append(f"{api_calls} tts calls, {seams} length seams, {inserted_silence_ms} ms of inserted silence")
+    if seams == 0:
+        log.append("one call, no stitching")
+    log.append("noise reduction off on the v3 path, it damages the audio around every join")
+
+    segment = AudioSegment(
+        data=np.clip(full, -32768, 32767).astype("<i2").tobytes(),
+        sample_width=2, frame_rate=rate, channels=1,
+    )
+    if rate != OUT_RATE:
+        segment = segment.set_frame_rate(OUT_RATE)
+    segment.export(out_path, format="wav")
+    return out_path
+
+
+def synth_chunk_v2(text, voice_id, voice_settings):
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
+    headers = {"xi-api-key": ELEVENLABS_API_KEY, "accept": "audio/mpeg", "Content-Type": "application/json"}
+    payload = {"text": text, "model_id": "eleven_multilingual_v2", "voice_settings": voice_settings}
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            response = requests.post(url, headers=headers, json=payload, stream=True, timeout=120)
+            if response.status_code in (429, 500, 502, 503, 504):
+                last_error = Exception(f"elevenlabs http {response.status_code}")
+                if attempt < 3:
+                    time.sleep(1.5 ** attempt)
+                    continue
+                response.raise_for_status()
+            response.raise_for_status()
+            buffer = io.BytesIO()
+            for piece in response.iter_content(16384):
+                if piece:
+                    buffer.write(piece)
+            buffer.seek(0)
+            return AudioSegment.from_file(buffer, format="mp3")
+        except requests.RequestException as error:
+            last_error = error
+            if attempt < 3:
+                time.sleep(1.5 ** attempt)
+                continue
+            raise HTTPException(502, f"tts failed: {error}")
+    raise HTTPException(502, f"tts failed: {last_error}")
+
+
+def split_sentences_v2(text, max_chars=MAX_CHARS):
     text = text.strip()
     if len(text) <= max_chars:
         return [text]
@@ -657,105 +1103,55 @@ def split_chunks(text, max_chars=MAX_CHARS):
     return chunks
 
 
-def synth_chunk(text, voice_id, voice_settings, model_id="eleven_v3"):
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
-    headers = {"xi-api-key": ELEVENLABS_API_KEY, "accept": "audio/mpeg", "Content-Type": "application/json"}
-    payload = {"text": text, "model_id": model_id, "voice_settings": voice_settings}
-    last_error = None
-    for attempt in range(1, 4):
-        try:
-            response = requests.post(url, headers=headers, json=payload, stream=True, timeout=120)
-            if response.status_code in (429, 500, 502, 503, 504):
-                last_error = Exception(f"elevenlabs http {response.status_code}")
-                if attempt < 3:
-                    time.sleep(1.5 ** attempt)
-                    continue
-                response.raise_for_status()
-            response.raise_for_status()
-            buffer = io.BytesIO()
-            for piece in response.iter_content(16384):
-                if piece:
-                    buffer.write(piece)
-            buffer.seek(0)
-            return AudioSegment.from_file(buffer, format="mp3")
-        except requests.RequestException as error:
-            last_error = error
-            if attempt < 3:
-                time.sleep(1.5 ** attempt)
-                continue
-            raise HTTPException(502, f"tts failed: {error}")
-    raise HTTPException(502, f"tts failed: {last_error}")
-
-
-def synth(text, voice_id, voice_settings, out_path, tts_provider="elevenlabs", log=None):
-    if log is None:
-        log = []
-    if not ELEVENLABS_API_KEY:
-        raise HTTPException(503, "ELEVENLABS_API_KEY is not set on the server")
-    # every pause form becomes one ms sentinel: ssml breaks keep their duration,
-    # [pause] is PAUSE_MS, [long pause] is LONG_PAUSE_MS
+def synth_v2(text, voice_id, voice_settings, out_path, pause_ms, long_pause_ms, log):
     raw = text.strip().replace("[breath]", " ")
     raw = BREAK_CLOSE_RE.sub(" ", raw)
 
-    def break_to_sentinel(match):
-        value = float(match.group(1))
-        ms = int(value) if match.group(2).lower() == "ms" else int(value * 1000)
-        return f" <<<BREAK:{ms}>>> "
-
     break_tags = len(BREAK_TAG_RE.findall(raw))
     long_pauses = raw.count(LONG_PAUSE_TOKEN)
-    short_pauses = raw.count(PAUSE_TOKEN)
+    short_pauses = len(PAUSE_ANY_RE.findall(raw)) - long_pauses
 
     raw = BREAK_TAG_RE.sub(break_to_sentinel, raw)
-    raw = raw.replace(LONG_PAUSE_TOKEN, f" <<<BREAK:{LONG_PAUSE_MS}>>> ")
-    raw = raw.replace(PAUSE_TOKEN, f" <<<BREAK:{PAUSE_MS}>>> ")
+    raw = raw.replace(LONG_PAUSE_TOKEN, f" <<<BREAK:{long_pause_ms}>>> ")
+    raw = raw.replace(PAUSE_TOKEN, f" <<<BREAK:{pause_ms}>>> ")
 
-    log.append(f"tts engine {tts_provider}")
     log.append(f"markers found: {break_tags} break tags, {long_pauses} [long pause], {short_pauses} [pause]")
 
     native_breaks = 0
-    if tts_provider == "eleven_v2":
-        # v2 understands ssml natively, pauses up to 3s go back into the text
-        # as real break tags so the model renders them, no split, no stitch.
-        # longer pauses stay as inserted silence since v2 caps breaks at 3s.
-        def native_or_keep(match):
-            nonlocal native_breaks
-            ms = int(match.group(1))
-            if ms <= 3000:
-                native_breaks += 1
-                return f' <break time="{ms / 1000:.1f}s" /> '
-            return match.group(0)
 
-        raw = re.sub(r"<<<BREAK:(\d+)>>>", native_or_keep, raw)
-        log.append(f"{native_breaks} pauses rendered natively by v2, no seam at those points")
+    def native_or_keep(match):
+        nonlocal native_breaks
+        ms = int(match.group(1))
+        if ms <= 3000:
+            native_breaks += 1
+            return f' <break time="{ms / 1000:.1f}s" /> '
+        return match.group(0)
 
-    parts = re.split(r"(<<<BREAK:\d+>>>)", raw)
+    raw = re.sub(r"<<<BREAK:(\d+)>>>", native_or_keep, raw)
+    log.append(f"{native_breaks} pauses rendered natively by v2, no seam at those points")
 
+    parts = SENTINEL_RE.split(raw)
     segments = []
     spoke = False
     api_calls = 0
     inserted_silence_ms = 0
     for part in parts:
         if part.startswith("<<<BREAK:"):
-            # every sentinel adds its own silence, so stacked pauses compound
-            ms = int(part[len("<<<BREAK:"):-len(">>>")])
-            segments.append(AudioSegment.silent(duration=ms, frame_rate=44100))
+            ms = int(part[9:-3])
+            segments.append(AudioSegment.silent(duration=ms, frame_rate=OUT_RATE))
             inserted_silence_ms += ms
             continue
         part = part.strip()
         if not part:
             continue
-        chunks = split_chunks(part)
+        chunks = split_sentences_v2(part)
         for chunk_index, chunk in enumerate(chunks):
             print(f"tts chunk {chunk_index + 1}/{len(chunks)}, {len(chunk)} chars")
             log.append(f"tts call {api_calls + 1}, {len(chunk)} chars")
             if chunk_index:
-                segments.append(AudioSegment.silent(duration=CHUNK_GAP_MS, frame_rate=44100))
+                segments.append(AudioSegment.silent(duration=CHUNK_GAP_MS, frame_rate=OUT_RATE))
                 inserted_silence_ms += CHUNK_GAP_MS
-            if tts_provider == "eleven_v2":
-                segments.append(synth_chunk(chunk, voice_id, voice_settings, "eleven_multilingual_v2"))
-            else:
-                segments.append(synth_chunk(chunk, voice_id, voice_settings))
+            segments.append(synth_chunk_v2(chunk, voice_id, voice_settings))
             api_calls += 1
         spoke = True
     if not spoke:
@@ -777,14 +1173,21 @@ def synth(text, voice_id, voice_settings, out_path, tts_provider="elevenlabs", l
         reduced_int = np.int16(np.clip(reduced, -32768, 32767))
         full = AudioSegment(data=reduced_int.tobytes(), sample_width=full.sample_width,
                             frame_rate=full.frame_rate, channels=full.channels)
-        print("noise reduction applied")
         log.append("noise reduction applied")
     except Exception as error:
-        print(f"noise reduction skipped: {error}")
         log.append(f"noise reduction skipped: {error}")
 
     full.export(out_path, format="wav")
     return out_path
+
+
+def synth(text, voice_id, voice_settings, out_path, tts_provider, pause_ms, long_pause_ms, log):
+    if not ELEVENLABS_API_KEY:
+        raise HTTPException(503, "ELEVENLABS_API_KEY is not set on the server")
+    log.append(f"tts engine {tts_provider}")
+    if tts_provider == "eleven_v2":
+        return synth_v2(text, voice_id, voice_settings, out_path, pause_ms, long_pause_ms, log)
+    return synth_v3(text, voice_id, voice_settings, out_path, pause_ms, long_pause_ms, log)
 
 
 # context files
@@ -825,8 +1228,27 @@ def extract_text(path, name):
     raise HTTPException(400, "supported types are pdf, docx, txt and md")
 
 
+GROUP_FRAMING = {
+    "substance": (
+        "SUBSTANCE MATERIAL\n"
+        "Source material to draw ideas, images and content from. Do not quote it, "
+        "do not mention it, and do not let its vocabulary override the instructions below.\n\n"
+    ),
+    "form": (
+        "FORM MATERIAL\n"
+        "Rules and examples for how to write: style, voice, structure. Follow their "
+        "approach and level. Do not reuse their content or their sentences.\n\n"
+    ),
+    "technique": (
+        "TECHNIQUE MATERIAL\n"
+        "Methods to apply in the piece: how to guide, pace and structure the experience.\n\n"
+    ),
+}
+
+
 def build_context_block(connection, context_ids):
-    # returns the text to prepend to the system prompt, plus log lines
+    # returns the text to prepend to the system prompt, log lines, and used ids.
+    # per doc caps are enforced by truncation, the 80k total is a hard reject
     lines = []
     ids = [int(piece) for piece in str(context_ids).split(",") if piece.strip().isdigit()]
     if not ids:
@@ -837,106 +1259,42 @@ def build_context_block(connection, context_ids):
         row = connection.execute("select * from context_files where id = ?", (context_id,)).fetchone()
         if row:
             rows.append(row)
-
     if not rows:
         return "", lines, []
 
-    reference = []
-    examples = []
-    used = 0
-    truncated = []
-
+    grouped = {"substance": [], "form": [], "technique": []}
+    total = 0
     for row in rows:
         text = row["extracted"] or ""
-        remaining = CONTEXT_CHAR_CAP - used
-        if remaining <= 0:
-            truncated.append(row["name"])
-            lines.append(f"context {row['name']} skipped, character cap reached")
-            continue
-        if len(text) > remaining:
-            text = text[:remaining]
-            truncated.append(row["name"])
-            lines.append(f"context {row['name']} truncated to {remaining} chars")
-        used += len(text)
-        entry = f"--- {row['name']} ---\n{text}"
-        if row["kind"] == "example":
-            examples.append(entry)
-        else:
-            reference.append(entry)
-        lines.append(f"context {row['name']} used as {row['kind']}, {len(text)} chars")
+        cap = DOC_CLASS_CAPS.get(row["size_class"] or "large", DOC_CLASS_CAPS["large"])
+        if len(text) > cap:
+            text = text[:cap]
+            lines.append(f"context {row['name']} cut to its {row['size_class']} cap, {cap} chars")
+        total += len(text)
+        group = row["kind"] if row["kind"] in grouped else "substance"
+        grouped[group].append(f"--- {row['name']} ---\n{text}")
+        lines.append(f"context {row['name']} used as {group}, {len(text)} chars")
+
+    if total > CONTEXT_CHAR_CAP:
+        raise HTTPException(400, f"selected context is {total} chars, the cap is "
+                                 f"{CONTEXT_CHAR_CAP}, untick something")
 
     block = ""
-    if reference:
-        block += (
-            "REFERENCE MATERIAL\n"
-            "Background material to inform how you write. Do not quote it, do not mention it, "
-            "and do not let its vocabulary override the instructions below.\n\n"
-            + "\n\n".join(reference)
-            + "\n\n"
-        )
-    if examples:
-        block += (
-            "EXAMPLE PIECES\n"
-            "Examples of the style and quality to aim for. Match their approach and their level. "
-            "Do not reuse their content, their images, or their sentences.\n\n"
-            + "\n\n".join(examples)
-            + "\n\n"
-        )
+    for group in CONTEXT_GROUPS:
+        if grouped[group]:
+            block += GROUP_FRAMING[group] + "\n\n".join(grouped[group]) + "\n\n"
     if block:
-        lines.append(f"context total {used} chars of a {CONTEXT_CHAR_CAP} cap")
+        lines.append(f"context total {total} chars of a {CONTEXT_CHAR_CAP} cap")
     return block, lines, [row["id"] for row in rows]
 
 
-# protocol chaining
-
-def chain_for(connection, prior_id):
-    # walks back from prior_id to the start of the protocol, oldest first
-    chain = []
-    seen = set()
-    current = prior_id
-    while current:
-        if current in seen:
-            break
-        seen.add(current)
-        row = connection.execute("select * from experiments where id = ?", (current,)).fetchone()
-        if not row:
-            break
-        chain.append(row)
-        current = row["prior_id"]
-    chain.reverse()
-    return chain
-
-
-def build_prior_block(chain):
-    # the format the days 2 to 5 prompt asks for: every meditation already given,
-    # in order, with their reflections
-    if not chain:
-        return "", []
-    lines = []
-    parts = []
-    for index, row in enumerate(chain, start=1):
-        speech = (row["speech_text"] or "").strip()
-        if not speech:
-            lines.append(f"day {index} (experiment {row['id']}) has no text, skipped")
-            continue
-        parts.append(f"MEDITATION {index}\n{speech}")
-        reflection = (row["reflection"] or "").strip()
-        if reflection:
-            parts.append(f"REFLECTION {index}\n{reflection}")
-        else:
-            parts.append(f"REFLECTION {index}\nnone given")
-        lines.append(f"day {index} (experiment {row['id']}) included, {len(speech.split())} words, "
-                     f"reflection {'yes' if reflection else 'no'}")
-    if not parts:
-        return "", lines
-    return "\n\n" + "\n\n".join(parts), lines
-
+# helpers
 
 def short_model(model):
     if not model:
         return ""
     lowered = model.lower()
-    for name in ("opus", "sonnet", "haiku"):
+    for name in ("opus", "fable", "sonnet", "haiku"):
         if name in lowered:
             return name
     return model
@@ -967,14 +1325,54 @@ def build_title(connection, topic, day_number, model, voice_id):
     return ", ".join(pieces)
 
 
-# experiment helpers
+def parse_questions(raw):
+    try:
+        data = json.loads(raw or "[]")
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    cleaned = []
+    for item in data:
+        if isinstance(item, dict):
+            cleaned.append({
+                "question": str(item.get("question") or "").strip(),
+                "answer": str(item.get("answer") or "").strip(),
+            })
+    return cleaned
+
+
+def questions_block(questions):
+    parts = []
+    for index, qa in enumerate(questions, start=1):
+        if not qa["question"] and not qa["answer"]:
+            continue
+        answer = qa["answer"] if qa["answer"] else "no answer given"
+        parts.append(f"QUESTION {index}: {qa['question']}\nANSWER {index}: {answer}")
+    return "\n\n".join(parts)
+
+
+def topic_from_questions(questions):
+    for qa in questions:
+        if qa["answer"]:
+            return qa["answer"].splitlines()[0].strip()
+    for qa in questions:
+        if qa["question"]:
+            return qa["question"].splitlines()[0].strip()
+    return ""
+
 
 def experiment_row(row):
+    try:
+        questions = json.loads(row["questions"] or "[]")
+    except Exception:
+        questions = []
     return {
         "id": row["id"],
         "created_at": row["created_at"],
         "title": row["title"] or "",
         "topic": row["topic"],
+        "questions": questions,
         "prompt_py": row["prompt_py"],
         "mix_py": row["mix_py"],
         "model": row["model"],
@@ -983,27 +1381,25 @@ def experiment_row(row):
         "style": row["style"],
         "boost": bool(row["boost"]),
         "music_filename": row["music_filename"],
+        "music_file": row["music_file"] or "",
         "speech_text": row["speech_text"],
+        "doc_html": row["doc_html"] or "",
         "voice_url": f"/api/bench/audio/{row['voice_file']}" if row["voice_file"] else None,
         "mix_url": f"/api/bench/audio/{row['mix_file']}" if row["mix_file"] else None,
         "mix_source": row["mix_source"] or "",
         "tts_provider": row["tts_provider"] or "elevenlabs",
-        "verdict": row["verdict"],
         "comment": row["comment"],
-        "reflection": row["reflection"] or "",
         "tag": row["tag"] or "",
-        "parent_id": row["parent_id"],
-        "protocol_id": row["protocol_id"] or row["id"],
         "day_number": row["day_number"] or 1,
-        "prior_id": row["prior_id"],
         "context_ids": row["context_ids"] or "",
         "run_log": row["run_log"] or "",
         "validation": row["validation"] or "",
         "word_count": row["word_count"] or 0,
-        "music_gain_db": row["music_gain_db"],
-        "voice_lufs": row["voice_lufs"],
-        "sync_mode": row["sync_mode"] or "",
-        "mix_profile": row["mix_profile"] or "",
+        "balance_db": row["balance_db"],
+        "fade_in_s": row["fade_in_s"],
+        "fade_out_s": row["fade_out_s"],
+        "pause_ms": row["pause_ms"],
+        "long_pause_ms": row["long_pause_ms"],
         "prompt_source": row["prompt_source"] or "",
     }
 
@@ -1034,6 +1430,13 @@ def optional_float(value):
         raise HTTPException(400, f"expected a number, got {text}")
 
 
+def optional_int(value, fallback=None):
+    number = optional_float(value)
+    if number is None:
+        return fallback
+    return int(number)
+
+
 def file_still_used(connection, field, value, exclude_id):
     if not value:
         return False
@@ -1044,14 +1447,16 @@ def file_still_used(connection, field, value, exclude_id):
     return row["n"] > 0
 
 
+init_db()
+
+
 # endpoints
 
 class WriteReq(BaseModel):
-    topic: str = ""
+    questions: list = []
     prompt_py: str = ""
     model: str = "claude-sonnet-4-6"
     context_ids: str = ""
-    prior_id: int = 0
 
 
 @app.post("/api/bench/write")
@@ -1059,34 +1464,25 @@ def write_answer(req: WriteReq):
     if not req.prompt_py.strip():
         raise HTTPException(400, "paste a prompt file first")
 
+    questions = parse_questions(json.dumps(req.questions))
+    topic_block = questions_block(questions)
+    topic = topic_from_questions(questions)
+
     log = [f"write started {now()}"]
     connection = db()
     try:
         system_prompt, user_prompt, source_name, validate = load_prompt_file(
-            req.prompt_py, req.topic.strip()
+            req.prompt_py, topic_block
         )
         log.append(f"prompt taken from {source_name}")
         log.append(f"model {req.model}")
+        answered = sum(1 for qa in questions if qa["answer"])
+        log.append(f"{len(questions)} questions, {answered} answered")
 
         context_block, context_lines, used_ids = build_context_block(connection, req.context_ids)
         log.extend(context_lines)
         if context_block:
             system_prompt = context_block + system_prompt
-
-        protocol_id = None
-        day_number = 1
-        prior_id = req.prior_id or None
-        if prior_id:
-            prior = fetch_experiment(connection, prior_id)
-            if not prior:
-                raise HTTPException(404, "the experiment you are continuing from was not found")
-            chain = chain_for(connection, prior_id)
-            prior_block, prior_lines = build_prior_block(chain)
-            log.extend(prior_lines)
-            user_prompt = user_prompt + prior_block
-            protocol_id = prior["protocol_id"] or prior["id"]
-            day_number = (prior["day_number"] or 1) + 1
-            log.append(f"continuing protocol {protocol_id}, this is day {day_number}")
 
         log.append(f"system prompt {len(system_prompt)} chars, user prompt {len(user_prompt)} chars")
 
@@ -1107,22 +1503,19 @@ def write_answer(req: WriteReq):
         else:
             log.append("validate() found no problems")
 
-        # save on write: every generation becomes a card, audio empty until make runs
         cursor = connection.execute(
-            "insert into experiments (created_at, topic, prompt_py, model, speech_text, "
-            "context_ids, prior_id, day_number, run_log, validation, word_count, prompt_source) "
+            "insert into experiments (created_at, topic, questions, prompt_py, model, speech_text, "
+            "context_ids, day_number, run_log, validation, word_count, prompt_source) "
             "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (now(), req.topic.strip(), req.prompt_py, req.model, speech,
-             ",".join(str(i) for i in used_ids), prior_id, day_number,
+            (now(), topic, json.dumps(questions), req.prompt_py, req.model, speech,
+             ",".join(str(i) for i in used_ids), 1,
              "\n".join(log), validation, word_count, source_name),
         )
         experiment_id = cursor.lastrowid
-        if protocol_id is None:
-            protocol_id = experiment_id
-        title = build_title(connection, req.topic.strip(), day_number, req.model, "")
+        title = build_title(connection, topic, 1, req.model, "")
         connection.execute(
             "update experiments set protocol_id = ?, title = ? where id = ?",
-            (protocol_id, title, experiment_id),
+            (experiment_id, title, experiment_id),
         )
         connection.commit()
         print(f"experiment {experiment_id} text saved")
@@ -1132,27 +1525,107 @@ def write_answer(req: WriteReq):
             "word_count": word_count,
             "validation": validation,
             "prompt_source": source_name,
-            "day_number": day_number,
             "run_log": "\n".join(log),
         }
     finally:
         connection.close()
 
 
-def attach_or_create(connection, experiment_id, topic, prompt_py, model, speech):
+class AutogenReq(BaseModel):
+    question: str = ""
+
+
+@app.post("/api/bench/autogen_answer")
+def autogen_answer(req: AutogenReq):
+    question = req.question.strip()
+    if not question:
+        raise HTTPException(400, "no question given")
+    answer = call_claude(AUTOGEN_MODEL, AUTOGEN_SYSTEM, question, max_tokens=300)
+    if not answer:
+        raise HTTPException(502, "claude returned empty text")
+    return {"answer": answer}
+
+
+class UpdatePromptReq(BaseModel):
+    experiment_id: int = 0
+    model: str = "claude-sonnet-4-6"
+    prompt_py: str = ""
+    original_speech: str = ""
+    final_speech: str = ""
+    marks: list = []
+    edits: list = []
+    doc_html: str = ""
+
+
+@app.post("/api/bench/update_prompt")
+def update_prompt(req: UpdatePromptReq):
+    if not req.prompt_py.strip():
+        raise HTTPException(400, "no prompt file to revise")
+    marks = [m for m in req.marks if isinstance(m, dict)]
+    edits = [str(e) for e in req.edits]
+    if not marks and not edits and req.final_speech.strip() == req.original_speech.strip():
+        raise HTTPException(400, "no feedback to work from, mark or edit the speech first")
+
+    user_content = build_feedback_prompt(req.prompt_py, req.original_speech,
+                                         req.final_speech, marks, edits)
+    revised = call_claude(req.model, UPDATE_PROMPT_SYSTEM, user_content, max_tokens=16000)
+    revised = strip_code_fences(revised)
+    if not revised:
+        raise HTTPException(502, "claude returned empty text")
+    try:
+        compile(revised, "revised_prompt.py", "exec")
+    except SyntaxError as error:
+        raise HTTPException(502, f"the revised prompt is not valid python: {error}")
+
+    if req.experiment_id:
+        connection = db()
+        if fetch_experiment(connection, req.experiment_id):
+            connection.execute("update experiments set doc_html = ? where id = ?",
+                               (req.doc_html, req.experiment_id))
+            connection.commit()
+        connection.close()
+
+    return {"prompt_py": revised,
+            "marks_used": len(marks),
+            "edits_used": len(edits)}
+
+
+class DocReq(BaseModel):
+    doc_html: str = ""
+    speech_text: str = ""
+
+
+@app.post("/api/bench/experiments/{experiment_id}/doc")
+def save_doc(experiment_id: int, req: DocReq):
+    connection = db()
+    row = fetch_experiment(connection, experiment_id)
+    if not row:
+        connection.close()
+        raise HTTPException(404, "experiment not found")
+    if req.speech_text.strip():
+        connection.execute("update experiments set doc_html = ?, speech_text = ?, word_count = ? where id = ?",
+                           (req.doc_html, req.speech_text, len(req.speech_text.split()), experiment_id))
+    else:
+        connection.execute("update experiments set doc_html = ? where id = ?",
+                           (req.doc_html, experiment_id))
+    connection.commit()
+    connection.close()
+    return {"status": "ok"}
+
+
+def attach_or_create(connection, experiment_id, topic, questions_json, prompt_py, model, speech):
     # attach audio to the write card if it exists and has no audio yet, else new card
     if experiment_id:
         row = fetch_experiment(connection, experiment_id)
         if row and not row["voice_file"] and not row["mix_file"]:
             return experiment_id, True
     cursor = connection.execute(
-        "insert into experiments (created_at, topic, prompt_py, model, speech_text) values (?, ?, ?, ?, ?)",
-        (now(), topic, prompt_py, model, speech),
+        "insert into experiments (created_at, topic, questions, prompt_py, model, speech_text) "
+        "values (?, ?, ?, ?, ?, ?)",
+        (now(), topic, questions_json, prompt_py, model, speech),
     )
     new_id = cursor.lastrowid
-    connection.execute(
-        "update experiments set protocol_id = ? where id = ?", (new_id, new_id)
-    )
+    connection.execute("update experiments set protocol_id = ? where id = ?", (new_id, new_id))
     connection.commit()
     return new_id, False
 
@@ -1160,6 +1633,7 @@ def attach_or_create(connection, experiment_id, topic, prompt_py, model, speech)
 @app.post("/api/bench/make")
 def make_mp3(
     topic: str = Form(""),
+    questions: str = Form("[]"),
     speech: str = Form(...),
     prompt_py: str = Form(""),
     mix_py: str = Form(""),
@@ -1171,10 +1645,12 @@ def make_mp3(
     tts_provider: str = Form("elevenlabs"),
     experiment_id: int = Form(0),
     voice_only: bool = Form(False),
-    music_gain_db: str = Form(""),
-    voice_lufs: str = Form(""),
-    sync_mode: str = Form(""),
-    mix_profile: str = Form(""),
+    balance_db: str = Form(""),
+    fade_in_s: str = Form(""),
+    fade_out_s: str = Form(""),
+    pause_ms: str = Form(""),
+    long_pause_ms: str = Form(""),
+    music_ref: str = Form(""),
     music: UploadFile | None = File(default=None),
 ):
     tts_provider = tts_provider.strip() or "elevenlabs"
@@ -1188,21 +1664,28 @@ def make_mp3(
         raise HTTPException(400, "voice id is empty")
 
     settings = {
-        "music_gain_db": optional_float(music_gain_db),
-        "voice_lufs": optional_float(voice_lufs),
-        "sync_mode": sync_mode.strip(),
-        "mix_profile": mix_profile.strip(),
+        "balance_db": optional_float(balance_db),
+        "fade_in_s": optional_float(fade_in_s),
+        "fade_out_s": optional_float(fade_out_s),
     }
+    pause = optional_int(pause_ms, DEFAULT_PAUSE_MS)
+    long_pause = optional_int(long_pause_ms, DEFAULT_LONG_PAUSE_MS)
+
+    parsed_questions = parse_questions(questions)
+    if not topic.strip():
+        topic = topic_from_questions(parsed_questions)
 
     if voice_only:
         mix_py = ""
         music = None
+        music_ref = ""
 
     mix_function = load_mix_function(mix_py)
 
     log = [f"make started {now()}"]
     connection = db()
-    target_id, attached = attach_or_create(connection, experiment_id, topic.strip(), prompt_py, model, speech)
+    target_id, attached = attach_or_create(connection, experiment_id, topic.strip(),
+                                           json.dumps(parsed_questions), prompt_py, model, speech)
     if attached:
         existing = fetch_experiment(connection, target_id)
         if existing and existing["run_log"]:
@@ -1220,6 +1703,17 @@ def make_mp3(
             music_path = MUSIC_DIR / music_rel
             save_upload(music, music_path)
             log.append(f"music uploaded as {music_rel}")
+        elif music_ref.strip():
+            candidate = (MUSIC_DIR / music_ref.strip()).resolve()
+            if MUSIC_DIR.resolve() not in candidate.parents:
+                raise HTTPException(400, "music reference is outside the music folder")
+            if candidate.exists():
+                music_path = candidate
+                music_rel = music_ref.strip()
+                music_filename = candidate.name
+                log.append(f"music reused from the server, {music_rel}")
+            else:
+                log.append(f"music reference {music_ref.strip()} not found on the server, no music used")
 
         source = mix_source_for(mix_py, music_path)
         log.append(f"mix source {source}")
@@ -1229,7 +1723,8 @@ def make_mp3(
                    f"boost {'on' if boost else 'off'}")
 
         voice_file = f"{target_id}_voice.wav"
-        synth(speech, voice_id, voice_settings, str(AUDIO_DIR / voice_file), tts_provider, log)
+        synth(speech, voice_id, voice_settings, str(AUDIO_DIR / voice_file),
+              tts_provider, pause, long_pause, log)
         print(f"experiment {target_id} voice saved")
         describe_audio(AUDIO_DIR / voice_file, "voice", log)
 
@@ -1247,19 +1742,18 @@ def make_mp3(
         row_now = fetch_experiment(connection, target_id)
         title = (row_now["title"] or "") if row_now else ""
         if not title:
-            day_number = (row_now["day_number"] if row_now else 1) or 1
-            title = build_title(connection, topic.strip(), day_number, model, voice_id)
+            title = build_title(connection, topic.strip(), 1, model, voice_id)
 
         connection.execute(
-            "update experiments set topic = ?, prompt_py = ?, mix_py = ?, model = ?, voice_id = ?, "
-            "stability = ?, style = ?, boost = ?, speech_text = ?, music_filename = ?, music_file = ?, "
-            "voice_file = ?, mix_file = ?, mix_source = ?, tts_provider = ?, run_log = ?, "
-            "word_count = ?, music_gain_db = ?, voice_lufs = ?, sync_mode = ?, mix_profile = ?, "
-            "title = ? where id = ?",
-            (topic.strip(), prompt_py, mix_py, model, voice_id, stability, style, int(boost), speech,
-             music_filename, music_rel, voice_file, mix_file, source, tts_provider,
-             "\n".join(log), len(speech.split()), settings["music_gain_db"], settings["voice_lufs"],
-             settings["sync_mode"], settings["mix_profile"], title, target_id),
+            "update experiments set topic = ?, questions = ?, prompt_py = ?, mix_py = ?, model = ?, "
+            "voice_id = ?, stability = ?, style = ?, boost = ?, speech_text = ?, music_filename = ?, "
+            "music_file = ?, voice_file = ?, mix_file = ?, mix_source = ?, tts_provider = ?, "
+            "run_log = ?, word_count = ?, balance_db = ?, fade_in_s = ?, fade_out_s = ?, "
+            "pause_ms = ?, long_pause_ms = ?, title = ? where id = ?",
+            (topic.strip(), json.dumps(parsed_questions), prompt_py, mix_py, model, voice_id,
+             stability, style, int(boost), speech, music_filename, music_rel, voice_file, mix_file,
+             source, tts_provider, "\n".join(log), len(speech.split()), settings["balance_db"],
+             settings["fade_in_s"], settings["fade_out_s"], pause, long_pause, title, target_id),
         )
         connection.commit()
         row = fetch_experiment(connection, target_id)
@@ -1287,114 +1781,6 @@ def make_mp3(
         connection.close()
 
 
-@app.post("/api/bench/remix/{experiment_id}")
-def remix(
-    experiment_id: int,
-    mix_py: str = Form(""),
-    music_gain_db: str = Form(""),
-    voice_lufs: str = Form(""),
-    sync_mode: str = Form(""),
-    mix_profile: str = Form(""),
-    music: UploadFile | None = File(default=None),
-):
-    settings = {
-        "music_gain_db": optional_float(music_gain_db),
-        "voice_lufs": optional_float(voice_lufs),
-        "sync_mode": sync_mode.strip(),
-        "mix_profile": mix_profile.strip(),
-    }
-
-    connection = db()
-    parent = fetch_experiment(connection, experiment_id)
-    if not parent:
-        connection.close()
-        raise HTTPException(404, "experiment not found")
-    if not parent["voice_file"] or not (AUDIO_DIR / parent["voice_file"]).exists():
-        connection.close()
-        raise HTTPException(400, "no stored voice file for this experiment")
-
-    mix_function = load_mix_function(mix_py)
-
-    log = [f"remix of experiment {experiment_id} started {now()}"]
-
-    music_path = ""
-    music_filename = parent["music_filename"]
-    music_rel = ""
-    reuse_parent_music = False
-    if music is not None and music.filename:
-        music_filename = Path(music.filename).name
-    elif parent["music_file"] and (MUSIC_DIR / parent["music_file"]).exists():
-        music_path = MUSIC_DIR / parent["music_file"]
-        music_rel = parent["music_file"]
-        reuse_parent_music = True
-        log.append(f"reusing the music from experiment {experiment_id}")
-
-    cursor = connection.execute(
-        "insert into experiments (created_at, topic, prompt_py, mix_py, model, voice_id, stability, style, boost, "
-        "speech_text, voice_file, parent_id, protocol_id, day_number, prior_id, reflection, word_count, "
-        "validation, prompt_source, context_ids) "
-        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (now(), parent["topic"], parent["prompt_py"], mix_py, parent["model"], parent["voice_id"],
-         parent["stability"], parent["style"], parent["boost"], parent["speech_text"],
-         parent["voice_file"], experiment_id, parent["protocol_id"] or parent["id"],
-         parent["day_number"] or 1, parent["prior_id"], parent["reflection"] or "",
-         parent["word_count"] or 0, parent["validation"] or "", parent["prompt_source"] or "",
-         parent["context_ids"] or ""),
-    )
-    new_id = cursor.lastrowid
-    connection.commit()
-
-    try:
-        if music is not None and music.filename:
-            music_rel = f"{new_id}/{music_filename}"
-            music_path = MUSIC_DIR / music_rel
-            save_upload(music, music_path)
-            log.append(f"new music uploaded as {music_rel}")
-
-        source = mix_source_for(mix_py, music_path)
-        log.append(f"mix source {source}")
-
-        describe_audio(AUDIO_DIR / parent["voice_file"], "voice", log)
-        if music_path:
-            describe_audio(music_path, "music", log)
-
-        mix_file = f"{new_id}_mix.mp3"
-        run_mix(mix_function, AUDIO_DIR / parent["voice_file"], music_path,
-                AUDIO_DIR / mix_file, settings, log)
-        print(f"experiment {new_id} remix of {experiment_id} saved, {source}")
-        describe_audio(AUDIO_DIR / mix_file, "output", log)
-
-        title = build_title(connection, parent["topic"], parent["day_number"] or 1,
-                            parent["model"], parent["voice_id"])
-        title = f"{title}, remix"
-
-        connection.execute(
-            "update experiments set music_filename = ?, music_file = ?, mix_file = ?, mix_source = ?, "
-            "run_log = ?, music_gain_db = ?, voice_lufs = ?, sync_mode = ?, mix_profile = ?, "
-            "title = ? where id = ?",
-            (music_filename, music_rel, mix_file, source, "\n".join(log),
-             settings["music_gain_db"], settings["voice_lufs"], settings["sync_mode"],
-             settings["mix_profile"], title, new_id),
-        )
-        connection.commit()
-        row = fetch_experiment(connection, new_id)
-        return experiment_row(row)
-    except HTTPException:
-        if not reuse_parent_music and music_rel:
-            shutil.rmtree(MUSIC_DIR / str(new_id), ignore_errors=True)
-        connection.execute("delete from experiments where id = ?", (new_id,))
-        connection.commit()
-        raise
-    except Exception as error:
-        if not reuse_parent_music and music_rel:
-            shutil.rmtree(MUSIC_DIR / str(new_id), ignore_errors=True)
-        connection.execute("delete from experiments where id = ?", (new_id,))
-        connection.commit()
-        raise HTTPException(500, f"remix failed: {error}")
-    finally:
-        connection.close()
-
-
 @app.delete("/api/bench/experiments/{experiment_id}")
 def delete_experiment(experiment_id: int):
     connection = db()
@@ -1403,8 +1789,8 @@ def delete_experiment(experiment_id: int):
         connection.close()
         raise HTTPException(404, "experiment not found")
 
-    # remixes share the parent's voice file, and reused music is shared too, so
-    # only remove a file when no other row still points at it
+    # old remixes shared voice files and reused music, so only remove a file
+    # when no other row still points at it
     removed = []
     kept = []
     for field, folder in (("voice_file", AUDIO_DIR), ("mix_file", AUDIO_DIR), ("music_file", MUSIC_DIR)):
@@ -1426,7 +1812,6 @@ def delete_experiment(experiment_id: int):
             except Exception:
                 pass
 
-    # anything that pointed at this row loses the link but keeps its own audio
     connection.execute("update experiments set prior_id = null where prior_id = ?", (experiment_id,))
     connection.execute("update experiments set parent_id = null where parent_id = ?", (experiment_id,))
     connection.execute("delete from experiments where id = ?", (experiment_id,))
@@ -1441,28 +1826,7 @@ def list_experiments():
     connection = db()
     rows = connection.execute("select * from experiments order by id desc").fetchall()
     connection.close()
-    return {"experiments": [experiment_row(row) for row in rows], "tags": TAGS}
-
-
-class VerdictReq(BaseModel):
-    verdict: str = ""
-    comment: str = ""
-
-
-@app.post("/api/bench/experiments/{experiment_id}/verdict")
-def set_verdict(experiment_id: int, req: VerdictReq):
-    if req.verdict not in ("worked", "did not work", ""):
-        raise HTTPException(400, "verdict must be worked, did not work, or empty")
-    connection = db()
-    row = fetch_experiment(connection, experiment_id)
-    if not row:
-        connection.close()
-        raise HTTPException(404, "experiment not found")
-    connection.execute("update experiments set verdict = ?, comment = ? where id = ?",
-                       (req.verdict, req.comment.strip(), experiment_id))
-    connection.commit()
-    connection.close()
-    return {"status": "ok"}
+    return {"experiments": [experiment_row(row) for row in rows], "tags": TAGS, "models": MODELS}
 
 
 class TagReq(BaseModel):
@@ -1485,19 +1849,19 @@ def set_tag(experiment_id: int, req: TagReq):
     return {"status": "ok", "tag": tag}
 
 
-class ReflectionReq(BaseModel):
-    reflection: str = ""
+class CommentReq(BaseModel):
+    comment: str = ""
 
 
-@app.post("/api/bench/experiments/{experiment_id}/reflection")
-def set_reflection(experiment_id: int, req: ReflectionReq):
+@app.post("/api/bench/experiments/{experiment_id}/comment")
+def set_comment(experiment_id: int, req: CommentReq):
     connection = db()
     row = fetch_experiment(connection, experiment_id)
     if not row:
         connection.close()
         raise HTTPException(404, "experiment not found")
-    connection.execute("update experiments set reflection = ? where id = ?",
-                       (req.reflection.strip(), experiment_id))
+    connection.execute("update experiments set comment = ? where id = ?",
+                       (req.comment.strip(), experiment_id))
     connection.commit()
     connection.close()
     return {"status": "ok"}
@@ -1521,23 +1885,38 @@ def set_title(experiment_id: int, req: TitleReq):
     return {"status": "ok"}
 
 
-@app.get("/api/bench/experiments/{experiment_id}/chain")
-def get_chain(experiment_id: int):
+# compose state, the whole middle column saved as one blob
+
+class ComposeReq(BaseModel):
+    state: dict = {}
+
+
+@app.get("/api/bench/compose")
+def get_compose():
     connection = db()
-    row = fetch_experiment(connection, experiment_id)
-    if not row:
-        connection.close()
-        raise HTTPException(404, "experiment not found")
-    protocol_id = row["protocol_id"] or row["id"]
-    rows = connection.execute(
-        "select * from experiments where protocol_id = ? order by day_number, id",
-        (protocol_id,),
-    ).fetchall()
+    row = connection.execute("select state from compose_state where id = 1").fetchone()
     connection.close()
-    return {"protocol_id": protocol_id, "experiments": [experiment_row(item) for item in rows]}
+    if not row:
+        return {"state": {}}
+    try:
+        return {"state": json.loads(row["state"])}
+    except Exception:
+        return {"state": {}}
 
 
-# saved file library
+@app.post("/api/bench/compose")
+def save_compose(req: ComposeReq):
+    connection = db()
+    connection.execute(
+        "insert or replace into compose_state (id, state, updated_at) values (1, ?, ?)",
+        (json.dumps(req.state), now()),
+    )
+    connection.commit()
+    connection.close()
+    return {"status": "ok"}
+
+
+# saved file library, kept for prompt and mix files
 
 class SaveFileReq(BaseModel):
     kind: str
@@ -1582,7 +1961,6 @@ def save_file(req: SaveFileReq):
     connection.commit()
     file_id = cursor.lastrowid
     connection.close()
-    print(f"saved {req.kind} file {file_id}: {req.name.strip()[:100]}")
     return {"id": file_id}
 
 
@@ -1601,10 +1979,11 @@ def delete_file(file_id: int):
 def list_context():
     connection = db()
     rows = connection.execute(
-        "select id, created_at, name, kind, chars, note from context_files order by id desc"
+        "select id, created_at, name, kind, size_class, chars, note from context_files order by id desc"
     ).fetchall()
     connection.close()
-    return {"context": [dict(row) for row in rows], "cap": CONTEXT_CHAR_CAP}
+    return {"context": [dict(row) for row in rows], "cap": CONTEXT_CHAR_CAP,
+            "class_caps": DOC_CLASS_CAPS, "groups": list(CONTEXT_GROUPS)}
 
 
 @app.get("/api/bench/context/{context_id}")
@@ -1615,7 +1994,6 @@ def get_context(context_id: int):
     if not row:
         raise HTTPException(404, "context file not found")
     data = dict(row)
-    # only the start of the text, the whole book is not useful on screen
     data["preview"] = (row["extracted"] or "")[:4000]
     data.pop("extracted", None)
     return data
@@ -1623,12 +2001,12 @@ def get_context(context_id: int):
 
 @app.post("/api/bench/context")
 def upload_context(
-    kind: str = Form("reference"),
+    kind: str = Form("substance"),
     file: UploadFile = File(...),
 ):
     kind = kind.strip().lower()
-    if kind not in ("reference", "example"):
-        raise HTTPException(400, "kind must be reference or example")
+    if kind not in CONTEXT_GROUPS:
+        raise HTTPException(400, "kind must be substance, form or technique")
     if not file or not file.filename:
         raise HTTPException(400, "no file uploaded")
 
@@ -1648,14 +2026,18 @@ def upload_context(
         text, note = extract_text(stored_path, name)
         if not text.strip():
             raise HTTPException(400, "no text could be read from this file, it may be a scan")
+        if len(text) > DOC_CLASS_CAPS["large"]:
+            raise HTTPException(400, f"this file is {len(text)} chars, the large cap is "
+                                     f"{DOC_CLASS_CAPS['large']}, trim it down first")
         connection.execute(
-            "update context_files set stored_name = ?, extracted = ?, chars = ?, note = ? where id = ?",
-            (stored_name, text, len(text), note, context_id),
+            "update context_files set stored_name = ?, extracted = ?, chars = ?, note = ?, "
+            "size_class = ? where id = ?",
+            (stored_name, text, len(text), note, size_class_for(len(text)), context_id),
         )
         connection.commit()
         print(f"context {context_id} saved: {name}, {len(text)} chars")
         row = connection.execute(
-            "select id, created_at, name, kind, chars, note from context_files where id = ?",
+            "select id, created_at, name, kind, size_class, chars, note from context_files where id = ?",
             (context_id,),
         ).fetchone()
         return dict(row)
@@ -1758,6 +2140,11 @@ def get_zip(experiment_id: int):
                 context_rows.append(found)
     connection.close()
 
+    try:
+        questions = json.loads(row["questions"] or "[]")
+    except Exception:
+        questions = []
+
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as bundle:
         if row["prompt_py"]:
@@ -1768,19 +2155,25 @@ def get_zip(experiment_id: int):
             bundle.writestr("default_mix.py", DEFAULT_MIX_SOURCE)
         if row["speech_text"]:
             bundle.writestr("answer.txt", row["speech_text"])
+        if questions:
+            lines = []
+            for index, qa in enumerate(questions, start=1):
+                lines.append(f"Q{index}: {qa.get('question', '')}")
+                lines.append(f"A{index}: {qa.get('answer', '')}")
+                lines.append("")
+            bundle.writestr("questions.txt", "\n".join(lines))
+        if row["doc_html"]:
+            bundle.writestr("feedback.html", row["doc_html"])
         if row["run_log"]:
             bundle.writestr("log.txt", row["run_log"])
         if row["validation"]:
             bundle.writestr("validation.txt", row["validation"])
-        if row["reflection"]:
-            bundle.writestr("reflection.txt", row["reflection"])
 
         info = [
             f"experiment {row['id']}",
             f"title: {row['title'] or 'none'}",
             f"created {row['created_at']}",
-            f"protocol: {row['protocol_id'] or row['id']}, day {row['day_number'] or 1}",
-            f"continues from: {row['prior_id'] if row['prior_id'] else 'nothing, this is day 1'}",
+            f"day {row['day_number'] or 1}",
             f"topic: {row['topic'] or 'none'}",
             f"model: {row['model'] or 'none'}",
             f"prompt taken from: {row['prompt_source'] or 'unknown'}",
@@ -1791,23 +2184,22 @@ def get_zip(experiment_id: int):
             f"speaker boost: {'on' if row['boost'] else 'off'}",
             f"music: {row['music_filename'] or 'none'}",
             f"mix source: {row['mix_source'] or 'none'}",
-            f"music gain db: {row['music_gain_db'] if row['music_gain_db'] is not None else 'mix default'}",
-            f"voice lufs: {row['voice_lufs'] if row['voice_lufs'] is not None else 'mix default'}",
-            f"sync mode: {row['sync_mode'] or 'mix default'}",
-            f"mix profile: {row['mix_profile'] or 'mix default'}",
+            f"balance db: {row['balance_db'] if row['balance_db'] is not None else 'mix default'}",
+            f"fade in s: {row['fade_in_s'] if row['fade_in_s'] is not None else 'mix default'}",
+            f"fade out s: {row['fade_out_s'] if row['fade_out_s'] is not None else 'mix default'}",
+            f"pause ms: {row['pause_ms'] if row['pause_ms'] is not None else DEFAULT_PAUSE_MS}",
+            f"long pause ms: {row['long_pause_ms'] if row['long_pause_ms'] is not None else DEFAULT_LONG_PAUSE_MS}",
             f"tts provider: {row['tts_provider'] or 'elevenlabs'}",
             f"tag: {row['tag'] or 'none'}",
-            f"verdict: {row['verdict'] or 'not judged'}",
             f"comment: {row['comment'] or 'none'}",
         ]
-        if row["parent_id"]:
-            info.append(f"remix of experiment {row['parent_id']}")
         bundle.writestr("info.txt", "\n".join(info) + "\n")
 
         if context_rows:
             listing = []
             for found in context_rows:
-                listing.append(f"{found['name']}  kind {found['kind']}  {found['chars']} chars  {found['note']}")
+                listing.append(f"{found['name']}  group {found['kind']}  {found['size_class']}  "
+                               f"{found['chars']} chars  {found['note']}")
                 source = CONTEXT_DIR / (found["stored_name"] or "")
                 if found["stored_name"] and source.exists():
                     bundle.write(source, f"context/{found['name']}")
@@ -1838,7 +2230,6 @@ def get_audio(filename: str, request: Request):
     data = file_path.read_bytes()
     total = len(data)
 
-    # range support so players can seek instead of always starting at byte zero
     range_header = request.headers.get("range")
     if range_header:
         try:
@@ -1880,7 +2271,7 @@ def get_audio(filename: str, request: Request):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "stimgen-v2"}
+    return {"status": "ok", "service": "stimgen-3"}
 
 
 HTML_PATH = Path(__file__).resolve().parent / "bench.html"
