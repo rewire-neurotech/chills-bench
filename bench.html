@@ -1,1811 +1,1149 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Stimgen v2</title>
-    <style>
-      :root {
-        font-family:
-          -apple-system, "SF Pro Text", "SF Pro Display", BlinkMacSystemFont,
-          "Helvetica Neue", sans-serif;
-      }
-      body {
-        background: #fff;
-        color: #111;
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 32px 20px 80px;
-        font-size: 15px;
-        line-height: 1.5;
-      }
-      h1 {
-        font-size: 15px;
-        font-weight: 600;
-        margin: 0 0 20px;
-      }
-      .layout {
-        display: grid;
-        grid-template-columns: 380px 1fr;
-        gap: 36px;
-        align-items: start;
-      }
-      @media (max-width: 900px) {
-        .layout {
-          grid-template-columns: 1fr;
-        }
-        #history {
-          order: 2;
-        }
-        #main {
-          order: 1;
-        }
-      }
-      label {
-        display: block;
-        font-size: 12px;
-        color: #888;
-        margin: 16px 0 5px;
-      }
-      textarea,
-      input,
-      select {
-        width: 100%;
-        background: #fff;
-        color: #111;
-        border: 1px solid #d8d8d8;
-        border-radius: 8px;
-        padding: 9px 11px;
-        font: inherit;
-        font-size: 14px;
-      }
-      textarea {
-        resize: vertical;
-        line-height: 1.55;
-      }
-      button {
-        position: relative;
-        background: #111;
-        color: #fff;
-        border: 0;
-        border-radius: 8px;
-        padding: 10px 18px;
-        font: inherit;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        margin: 20px 8px 0 0;
-      }
-      button.sec {
-        background: #f2f2f2;
-        color: #111;
-      }
-      button:disabled {
-        opacity: 0.4;
-      }
-      button.loading {
-        color: transparent;
-        pointer-events: none;
-        opacity: 1;
-      }
-      button.loading::after {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 14px;
-        height: 14px;
-        margin: -8px 0 0 -8px;
-        border: 2px solid #fff;
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
-      button.sec.loading::after {
-        border-color: #111;
-        border-top-color: transparent;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      .row {
-        display: flex;
-        gap: 12px;
-      }
-      .row > * {
-        flex: 1;
-        min-width: 0;
-      }
-      details {
-        margin-top: 18px;
-        border-top: 1px solid #eee;
-        padding-top: 12px;
-      }
-      summary {
-        font-size: 13px;
-        color: #888;
-        cursor: pointer;
-      }
-      .check {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 16px;
-        font-size: 14px;
-      }
-      .check input {
-        width: auto;
-      }
-      audio {
-        width: 100%;
-        margin-top: 16px;
-      }
-      #st {
-        font-size: 13px;
-        color: #888;
-        margin-top: 10px;
-        min-height: 18px;
-      }
-      .hint {
-        font-size: 11px;
-        color: #aaa;
-        margin-top: 5px;
-      }
-      #mixNote {
-        font-size: 13px;
-        color: #888;
-        margin-top: 10px;
-      }
-      .filebar {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-        align-items: center;
-      }
-      .filebar select {
-        flex: 1;
-      }
-      .filebar button {
-        margin: 0;
-        padding: 8px 12px;
-        font-size: 13px;
-      }
-      .namebar {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-        align-items: center;
-      }
-      .namebar input {
-        flex: 1;
-      }
-      .namebar button {
-        margin: 0;
-        padding: 8px 12px;
-        font-size: 13px;
-      }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stimgen 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FAFAF7; --panel:#FFFFFF; --ink:#1A1A17; --muted:#8B8B82; --line:#E7E6DF; --line-soft:#F0EFE9;
+  --green:#2E6B4F; --green-soft:#EAF2EE;
+  --red:#B0402C; --red-soft:#F7ECE9;
+  --amber:#A8721B; --amber-soft:#FBF4E6;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);font-size:13px;line-height:1.45}
+button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
+input,textarea,select{font:inherit;color:inherit}
+::placeholder{color:#B4B3AA}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
-      /* write feedback: word count and the prompt file's own validate() */
-      #writeInfo {
-        margin-top: 8px;
-        font-size: 12px;
-        display: none;
-      }
-      #writeInfo.show {
-        display: block;
-      }
-      #wordCount {
-        color: #888;
-      }
-      #validation {
-        margin-top: 6px;
-        background: #fff8f0;
-        border: 1px solid #f0d9c0;
-        border-radius: 8px;
-        padding: 9px 11px;
-        color: #8a4b00;
-        white-space: pre-wrap;
-        display: none;
-      }
-      #validation.show {
-        display: block;
-      }
-      #validation .vhead {
-        font-weight: 600;
-        margin-bottom: 4px;
-      }
-      #validationOk {
-        color: #16a34a;
-        display: none;
-      }
-      #validationOk.show {
-        display: block;
-      }
+/* ---------- top bar ---------- */
+.topbar{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20}
+.wordmark{font-weight:600;font-size:15px}
+.wordmark span{color:var(--muted);font-weight:400}
+.topbar .spacer{flex:1}
 
-      /* context library */
-      .ctxbar {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-        align-items: center;
-      }
-      .ctxbar select {
-        flex: 0 0 130px;
-      }
-      .ctxbar input[type="file"] {
-        flex: 1;
-      }
-      .ctxbar button {
-        margin: 0;
-        padding: 8px 12px;
-        font-size: 13px;
-        white-space: nowrap;
-      }
-      .ctxlist {
-        margin-top: 10px;
-      }
-      .ctxitem {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        font-size: 13px;
-        padding: 6px 0;
-        border-bottom: 1px solid #f4f4f4;
-      }
-      .ctxitem input[type="checkbox"] {
-        width: auto;
-        margin-top: 3px;
-      }
-      .ctxitem .ctxname {
-        flex: 1;
-        min-width: 0;
-      }
-      .ctxitem .ctxmeta {
-        font-size: 11px;
-        color: #aaa;
-      }
-      .ctxitem a {
-        font-size: 12px;
-        color: #b00;
-        text-decoration: none;
-      }
-      #ctxCount {
-        font-size: 12px;
-        color: #888;
-        margin-top: 8px;
-      }
-      #ctxCount.over {
-        color: #b00;
-      }
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:300px 420px 1fr;height:calc(100vh - 45px)}
+body.hist-closed .app{grid-template-columns:34px 420px 1fr}
+body.hist-closed .left{display:none}
+.left-rail{display:none;border-right:1px solid var(--line);background:var(--paper);padding-top:10px;justify-content:center;align-items:flex-start}
+body.hist-closed .left-rail{display:flex}
+.left-rail button{color:var(--muted);font-size:13px;padding:4px 6px;border-radius:6px}
+.left-rail button:hover{color:var(--ink);background:var(--line-soft)}
+.col{overflow-y:auto;min-width:0}
+.left{border-right:1px solid var(--line);background:var(--paper);padding:12px}
+.compose{border-right:1px solid var(--line);background:var(--paper);padding:14px 16px 50px}
+.doc{background:var(--panel);display:flex;flex-direction:column}
 
-      /* protocol chaining */
-      #priorNote {
-        font-size: 12px;
-        color: #888;
-        margin-top: 6px;
-      }
+/* ---------- shared ---------- */
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--mono)}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.5}
+.field-label{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:block}
+.tinput,.tarea,.tselect{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 9px;background:var(--panel);font-size:12.5px}
+.tarea{resize:vertical;min-height:64px}
+.btn{border:1px solid var(--line);border-radius:7px;padding:6px 12px;background:var(--panel);font-size:12.5px}
+.btn:hover{border-color:#CBCAC1}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.small{padding:4px 9px;font-size:11.5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row-flex{display:flex;gap:6px}
+.row-flex .tinput{flex:1}
 
-      /* history */
-      #history {
-        border-right: 1px solid #eee;
-        padding-right: 24px;
-      }
-      @media (max-width: 900px) {
-        #history {
-          border-right: 0;
-          padding-right: 0;
-          border-top: 1px solid #eee;
-          padding-top: 16px;
-          margin-top: 24px;
-        }
-      }
-      #history h2 {
-        font-size: 13px;
-        font-weight: 600;
-        color: #888;
-        margin: 0 0 8px;
-      }
-      #tagFilter {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 10px;
-      }
-      .chip {
-        font-size: 11px;
-        border: 1px solid #e2e2e2;
-        border-radius: 999px;
-        padding: 3px 9px;
-        cursor: pointer;
-        background: #fff;
-        color: #666;
-        user-select: none;
-      }
-      .chip.active {
-        background: #111;
-        border-color: #111;
-        color: #fff;
-      }
-      .protogroup {
-        margin-top: 18px;
-      }
-      .protohead {
-        font-size: 11px;
-        color: #aaa;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding-bottom: 4px;
-        border-bottom: 1px solid #f0f0f0;
-      }
-      .exp {
-        border: 1px solid #eee;
-        border-left: 3px solid #eee;
-        border-radius: 10px;
-        padding: 14px;
-        margin-top: 12px;
-      }
-      .exp .meta {
-        font-size: 12px;
-        color: #888;
-      }
-      .exp .titlebox {
-        margin-top: 6px;
-      }
-      .exp .titlebox input {
-        font-size: 14px;
-        font-weight: 500;
-        padding: 6px 8px;
-        border: 1px solid transparent;
-        border-radius: 6px;
-        background: transparent;
-      }
-      .exp .titlebox input:hover {
-        border-color: #eee;
-      }
-      .exp .titlebox input:focus {
-        border-color: #d8d8d8;
-        background: #fff;
-        outline: none;
-      }
-      .exp .topic {
-        font-size: 13px;
-        color: #666;
-        margin-top: 4px;
-      }
-      .exp .topic.clamp {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .exp .more {
-        font-size: 12px;
-        color: #888;
-        cursor: pointer;
-        margin-top: 2px;
-        display: none;
-      }
-      .exp .more.show {
-        display: inline-block;
-      }
-      .exp .source {
-        font-size: 12px;
-        color: #888;
-        margin-top: 6px;
-      }
-      .exp audio {
-        margin-top: 10px;
-      }
-      .exp .links {
-        margin-top: 8px;
-        font-size: 12px;
-      }
-      .exp .links a {
-        color: #111;
-        margin-right: 14px;
-      }
-      .exp .speechtext {
-        display: none;
-        font-size: 13px;
-        color: #444;
-        white-space: pre-wrap;
-        background: #fafafa;
-        border-radius: 8px;
-        padding: 10px;
-        margin-top: 8px;
-      }
-      .exp .speechtext.show {
-        display: block;
-      }
-      .exp .vrow {
-        display: flex;
-        gap: 8px;
-        margin-top: 10px;
-      }
-      .exp .vrow button {
-        margin: 0;
-        padding: 7px 12px;
-        font-size: 13px;
-      }
-      .exp button.on {
-        background: #111;
-        color: #fff;
-      }
-      .exp button.off {
-        background: #f2f2f2;
-        color: #111;
-      }
-      .exp .tagrow {
-        margin-top: 10px;
-      }
-      .exp .tagrow select {
-        font-size: 13px;
-        padding: 7px 10px;
-      }
-      .exp .boxlabel {
-        font-size: 11px;
-        color: #aaa;
-        margin: 10px 0 4px;
-      }
-      .exp textarea {
-        font-size: 13px;
-      }
-      .exp .savebtn {
-        margin-top: 6px;
-        padding: 7px 12px;
-        font-size: 13px;
-      }
-      .exp .params {
-        font-size: 11px;
-        color: #aaa;
-        margin-top: 8px;
-      }
-      .exp .validation {
-        font-size: 12px;
-        color: #8a4b00;
-        background: #fff8f0;
-        border-radius: 8px;
-        padding: 8px 10px;
-        margin-top: 8px;
-        white-space: pre-wrap;
-      }
-      .exp details.log {
-        margin-top: 10px;
-        border-top: 1px solid #f4f4f4;
-        padding-top: 8px;
-      }
-      .exp details.log summary {
-        font-size: 12px;
-      }
-      .exp pre.logtext {
-        font-size: 11px;
-        line-height: 1.45;
-        color: #555;
-        background: #fafafa;
-        border-radius: 8px;
-        padding: 10px;
-        margin: 8px 0 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-        max-height: 320px;
-        overflow: auto;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Stimgen v2</h1>
+/* ---------- compose sections (v2-style toggles) ---------- */
+.sec{border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:8px}
+.sec > summary{list-style:none;padding:9px 11px;display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;font-weight:500}
+.sec > summary::before{content:"▸";color:var(--muted);font-size:10px;transition:transform .12s}
+.sec[open] > summary::before{transform:rotate(90deg)}
+.sec > .body{padding:2px 11px 11px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:9px}
+.sec .body > :first-child{margin-top:8px}
+.subdetails{border:1px solid var(--line-soft);border-radius:7px}
+.subdetails > summary{list-style:none;padding:7px 9px;font-size:12px;color:var(--muted);cursor:pointer}
+.subdetails > summary::before{content:"▸ ";font-size:10px}
+.subdetails[open] > summary::before{content:"▾ "}
+.subdetails > .body{padding:0 9px 9px}
+.codebox{width:100%;font-family:var(--mono);font-size:11.5px;background:var(--paper);border:1px solid var(--line-soft);border-radius:6px;padding:8px;min-height:70px;resize:vertical;color:var(--ink)}
 
-    <div class="layout">
-      <div id="history">
-        <h2>History</h2>
-        <div id="tagFilter"></div>
-        <div id="expList"></div>
-      </div>
+/* ---------- questions ---------- */
+.q{margin-bottom:10px}
+.q .q-line{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
+.q .q-num{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.q .q-text{font-size:12.5px;font-weight:500;border-bottom:1px dashed transparent;outline:none}
+.q .q-text:hover,.q .q-text:focus{border-bottom-color:#C9C8BF}
+.q .q-x{color:var(--muted);font-size:11px;margin-left:auto}
+.q .q-x:hover{color:var(--red)}
+.answer-wrap{position:relative}
+.answer-wrap .tarea{padding-bottom:30px}
+.autogen{position:absolute;left:7px;bottom:7px;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px;background:var(--paper)}
+.autogen:hover{color:var(--ink)}
+.addq{font-size:12px;color:var(--muted);padding:2px 0}
+.addq:hover{color:var(--ink)}
 
-      <div id="main">
-        <label>What do you want to meditate about</label>
-        <textarea id="answer" rows="3"></textarea>
+/* ---------- context docs ---------- */
+.ctx-group{margin-top:2px}
+.ctx-group .g-name{font-size:12px;font-weight:500;margin-bottom:4px;display:flex;align-items:baseline}
+.ctx-group .g-add{margin-left:auto;font-size:11px;color:var(--muted);font-weight:400}
+.ctx-group .g-add:hover{color:var(--ink)}
+.doc-row{display:flex;align-items:center;gap:7px;padding:4px 2px;font-size:12px}
+.doc-row input[type=checkbox]{accent-color:var(--ink)}
+.doc-row .fname{flex:1;font-family:var(--mono);font-size:11.5px}
+.doc-row .size{color:var(--muted);font-size:11px}
+.doc-row .size b{font-family:var(--mono);font-weight:500;color:var(--green);margin-right:3px}
+.doc-row .kb{font-family:var(--mono);font-size:10.5px;color:var(--muted);width:32px;text-align:right}
+.budget{margin-top:6px;border-top:1px solid var(--line-soft);padding-top:8px}
+.budget .nums{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:4px}
+.budget .bar{height:4px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.budget .fill{height:100%;width:57%;border-radius:999px;background:var(--ink)}
 
-        <label>Continue from</label>
-        <select id="prior">
-          <option value="">nothing, this is day 1</option>
-        </select>
-        <div id="priorNote">
-          Pick an earlier piece to build a protocol. Everything before it is sent
-          to the model in order, with its reflections.
-        </div>
+/* ---------- generate ---------- */
+.genbtn{margin-top:0;padding:9px}
+.row-flex.genrow{margin-top:4px}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;margin-right:7px;vertical-align:-2px;animation:spin .7s linear infinite}
+.btn:not(.primary) .spinner{border-color:var(--line);border-top-color:var(--ink)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.doc-body{position:relative}
+.doc-body.generating .page{opacity:.3;pointer-events:none}
+.gen-dots{display:none;position:absolute;z-index:5;top:90px;left:50%;transform:translateX(-50%);text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 22px;box-shadow:0 6px 24px rgba(0,0,0,.07)}
+.doc-body.generating .gen-dots{display:block}
+.gen-dots i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ink);margin:0 3px;animation:bounce 1s infinite}
+.gen-dots i:nth-child(2){animation-delay:.15s}
+.gen-dots i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-5px);opacity:1}}
 
-        <div class="row">
-          <div>
-            <label>Voice</label>
-            <select id="voiceSaved">
-              <option value="">saved voices</option>
-            </select>
-          </div>
-          <div>
-            <label>Voice ID</label>
-            <input type="text" id="voice" placeholder="21m00Tcm4TlvDq8ikWAM" />
-          </div>
-        </div>
-        <div class="filebar">
-          <input type="text" id="voiceName" placeholder="name this voice to save it" />
-          <button class="sec" id="voiceSave">Save voice</button>
-          <button class="sec" id="voiceDelete">Delete</button>
-        </div>
+/* ---------- doc panel ---------- */
+.doc-head{display:flex;align-items:center;gap:9px;padding:10px 18px;border-bottom:1px solid var(--line)}
+.doc-head .title{font-weight:500;font-size:13px}
+.doc-head .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.doc-head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.edit-pill{font-family:var(--mono);font-size:10.5px;background:var(--line-soft);border-radius:999px;padding:2px 8px}
+.doc-body{flex:1;overflow-y:auto;padding:32px 0}
+.page{max-width:560px;margin:0 40px;font-size:15px;line-height:1.8}
+.page p{margin-bottom:1.3em}
+.page[contenteditable]:focus,.page[contenteditable]:focus-visible{outline:none}
+span.ins{color:var(--red)}
+mark.good{background:var(--green-soft);border-bottom:2px solid var(--green);color:inherit}
+mark.bad{background:var(--red-soft);border-bottom:2px solid var(--red);color:inherit}
+.margin-note{float:right;clear:right;width:150px;margin-right:-180px;font-size:11.5px;line-height:1.45;color:var(--muted);border-left:2px solid var(--line);padding-left:8px}
+.margin-note b{font-weight:500;color:var(--ink)}
+.pop{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:0 6px 24px rgba(0,0,0,.10);padding:7px;display:none;align-items:center;gap:6px}
+.pop.show{display:flex}
+.pop .thumb{width:28px;height:28px;border:1px solid var(--line);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.pop .thumb.on-good{background:var(--green-soft);border-color:var(--green)}
+.pop .thumb.on-bad{background:var(--red-soft);border-color:var(--red)}
+.pop input{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;width:170px}
+.doc-foot{border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-direction:column;gap:9px}
+.foot-row{display:flex;align-items:center;gap:10px}
+.foot-row .hint{flex:1}
+.player{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line-soft);border-radius:7px;padding:6px 9px}
+.player .play{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;flex:none}
+.player .track{flex:1;height:3px;background:var(--line);border-radius:999px}
+.player .t{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+#mp3row{display:none}
+#mp3row.show{display:flex;flex-direction:column;gap:9px}
+.pub-done{display:none;align-items:center;gap:8px;font-size:12.5px}
+.pub-done.show{display:flex}
+.url-pill{font-family:var(--mono);font-size:11.5px;background:var(--green-soft);color:var(--green);border-radius:999px;padding:3px 10px}
 
-        <div class="row">
-          <div>
-            <label>TTS engine</label>
-            <select id="tts">
-              <option value="elevenlabs">eleven v3</option>
-              <option value="eleven_v2">eleven v2 ssml</option>
-            </select>
-          </div>
-          <div>
-            <label>Music</label><input type="file" id="music" accept="audio/*" />
-          </div>
-        </div>
-        <div class="hint" id="ttsHint"></div>
+/* ---------- left panel ---------- */
+.left-head{display:flex;align-items:center;gap:2px;margin-bottom:10px}
+.ltab{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:4px 8px;border-radius:6px}
+.ltab.on{color:var(--ink);background:var(--line-soft)}
+.left-x{margin-left:auto;color:var(--muted);font-size:14px;padding:2px 6px;border-radius:6px}
+.left-x:hover{color:var(--ink);background:var(--line-soft)}
+.hfilters{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.hfilter{border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11.5px;color:var(--muted);background:var(--panel)}
+.hfilter.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.hcard{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px;margin-bottom:8px}
+.hcard.best{border-left:3px solid var(--green)}
+.hcard.good{border-left:3px solid #7FA88F}
+.hcard.rejected{border-left:3px solid var(--red);opacity:.7}
+.hcard .h-title{font-size:12.5px;font-weight:500;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hcard .id-row{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:7px}
+.hcard .player{margin-bottom:7px}
+.tagrow{display:flex;gap:4px;margin-bottom:7px}
+.tag{border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:11px;color:var(--muted)}
+.tag.on-best{background:var(--green);border-color:var(--green);color:#fff}
+.tag.on-good{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.tag.on-rej{background:var(--red);border-color:var(--red);color:#fff}
+.comment-saved{font-size:12px;background:var(--paper);border:1px solid var(--line-soft);border-radius:7px;padding:6px 8px;margin-bottom:7px}
+.comment-saved .edit{font-size:10.5px;color:var(--muted);text-decoration:underline;margin-left:5px}
+.comment-input{display:flex;gap:5px;margin-bottom:7px}
+.comment-input input{flex:1;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;background:var(--panel)}
+.hactions{display:flex;gap:8px;font-size:11.5px}
+.hactions button{color:var(--muted);padding:2px 0}
+.hactions button:hover{color:var(--ink);text-decoration:underline}
+.runlog{margin-top:5px}
+.runlog summary{list-style:none;font-size:11px;color:var(--muted);cursor:pointer}
+.runlog summary::before{content:"▸ "}
+.runlog[open] summary::before{content:"▾ "}
+.runlog .body{font-family:var(--mono);font-size:10.5px;color:var(--muted);padding-top:4px;line-height:1.6}
+.runlog .warn{color:var(--amber)}
+/* published list */
+.pcard{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px;margin-bottom:8px}
+.pcard .h-title{font-size:13px;font-weight:600;margin-bottom:1px}
+.pcard .p-date{font-size:11px;color:var(--muted);margin-bottom:9px}
+.pcard .stats{display:flex;gap:22px;margin-bottom:10px}
+.pcard .stat b{display:block;font-size:21px;font-weight:600;line-height:1.05}
+.pcard .stat span{font-size:10.5px;color:var(--muted)}
+.pcard .p-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.pcard .copy{font-size:11px;color:var(--muted)}
+.pcard .copy:hover{color:var(--ink);text-decoration:underline}
+.kv{display:flex;gap:8px;font-size:11.5px;line-height:1.5;padding:1px 0}
+.kv .k{color:var(--muted);width:42px;flex:none}
+.kv .v{color:var(--ink)}
+.su{display:flex;align-items:baseline;gap:6px;font-size:11.5px;padding:2px 0}
+.su .n{color:var(--ink)}
+.su .d{color:var(--muted);font-size:10.5px;margin-left:auto}
+.su .pl{font-family:var(--mono);font-size:10px;background:var(--line-soft);border-radius:999px;padding:1px 6px;color:var(--ink)}
+.su .pl.zero{color:var(--muted)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
 
-        <details>
-          <summary>Context files</summary>
-          <div class="ctxbar">
-            <select id="ctxKind">
-              <option value="reference">reference</option>
-              <option value="example">example</option>
-            </select>
-            <input type="file" id="ctxFile" accept=".pdf,.docx,.txt,.md" />
-            <button class="sec" id="ctxUpload">Upload</button>
-          </div>
-          <div class="hint">
-            pdf, docx, txt and md. Reference is background material like a manual
-            or a book. Example is a piece whose style you want matched. Tick the
-            ones to send with the next write.
-          </div>
-          <div class="ctxlist" id="ctxList"></div>
-          <div id="ctxCount"></div>
-        </details>
+<div class="topbar">
+  <div class="wordmark">Stimgen <span>3</span></div>
+  <div class="spacer"></div>
+</div>
 
-        <details>
-          <summary>prompt.py</summary>
-          <div class="filebar">
-            <select id="promptSaved">
-              <option value="">saved prompt files</option>
-            </select>
-            <button class="sec" id="promptSave">Save</button>
-            <button class="sec" id="promptDelete">Delete</button>
-          </div>
-          <div class="namebar" id="promptNamebar" hidden>
-            <input
-              type="text"
-              id="promptName"
-              placeholder="name this prompt file"
-            />
-            <button class="sec" id="promptNameOk">Save it</button>
-            <button class="sec" id="promptNameCancel">Cancel</button>
-          </div>
-          <textarea id="promptPy" rows="6" placeholder="paste prompt.py"></textarea>
-          <div class="hint">
-            Any prompt file works. It looks for SYSTEM_PROMPT or PROMPT, then
-            build_user_prompt(). Repo files work as is. If the file has a
-            validate() function it is run on the result.
-          </div>
-          <label>Model</label>
-          <select id="model">
-            <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
-            <option value="claude-opus-4-8">claude-opus-4-8</option>
-            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
-          </select>
-        </details>
+<div class="app">
 
-        <details>
-          <summary>mix.py</summary>
-          <div class="filebar">
-            <select id="mixSaved">
-              <option value="">saved mix files</option>
-            </select>
-            <button class="sec" id="mixSave">Save</button>
-            <button class="sec" id="mixDelete">Delete</button>
-          </div>
-          <div class="namebar" id="mixNamebar" hidden>
-            <input type="text" id="mixName" placeholder="name this mix file" />
-            <button class="sec" id="mixNameOk">Save it</button>
-            <button class="sec" id="mixNameCancel">Cancel</button>
-          </div>
-          <textarea id="mixPy" rows="5" placeholder="paste mix.py"></textarea>
-          <div class="hint">
-            Any mix file works. Needs a mix(voice_path, music_path, out_path)
-            function. Repo files work as is. Empty uses a plain default mix.
-          </div>
-        </details>
-
-        <details>
-          <summary>Mix settings</summary>
-          <div class="row">
-            <div>
-              <label>Music gain dB</label>
-              <input
-                type="number"
-                id="musicGain"
-                step="0.5"
-                placeholder="mix default"
-              />
-            </div>
-            <div>
-              <label>Voice level LUFS</label>
-              <input
-                type="number"
-                id="voiceLufs"
-                step="0.5"
-                placeholder="mix default"
-              />
-            </div>
-          </div>
-          <div class="row">
-            <div>
-              <label>Sync mode</label>
-              <select id="syncMode">
-                <option value="">mix default</option>
-                <option value="no_retime_trim_pad">
-                  no retime, trim and pad
-                </option>
-                <option value="retime_voice_to_music">
-                  retime voice to music
-                </option>
-                <option value="retime_music_to_voice">
-                  retime music to voice
-                </option>
-              </select>
-            </div>
-            <div>
-              <label>Mix profile</label>
-              <select id="mixProfile">
-                <option value="">mix default</option>
-                <option value="auto">auto</option>
-                <option value="primer">primer</option>
-                <option value="jolt">jolt</option>
-                <option value="jolt1">jolt1</option>
-              </select>
-            </div>
-          </div>
-          <div class="hint">
-            Leave a box empty to let the mix file decide. Music gain maps to
-            music_premix_gain_db, voice level to voice_target_lufs. If the mix
-            file has no such argument the gain is applied to the input file
-            instead and the run log says so. Sync mode and profile only reach
-            mix files that declare them.
-          </div>
-        </details>
-
-        <details>
-          <summary>Voice parameters</summary>
-          <div class="row">
-            <div>
-              <label>Stability</label
-              ><select id="stab">
-                <option value="0">Creative</option>
-                <option value="0.5" selected>Natural</option>
-                <option value="1">Robust</option>
-              </select>
-            </div>
-            <div>
-              <label>Style 0 to 1</label
-              ><input
-                type="number"
-                id="style"
-                value="0"
-                step="0.05"
-                min="0"
-                max="1"
-              />
-            </div>
-          </div>
-          <div class="check">
-            <input type="checkbox" id="boost" checked /><label
-              for="boost"
-              style="margin: 0"
-              >Speaker boost</label
-            >
-          </div>
-        </details>
-
-        <label>Speech text</label>
-        <textarea
-          id="speech"
-          rows="6"
-          placeholder="write answer fills this, or paste a speech yourself"
-        ></textarea>
-        <div id="writeInfo">
-          <div id="wordCount"></div>
-          <div id="validationOk">validate() found no problems</div>
-          <div id="validation"></div>
-        </div>
-
-        <button class="sec" id="write">Write answer</button>
-        <button class="sec" id="voiceOnly">Make voice only</button>
-        <button id="make">Make mp3</button>
-        <div id="mixNote" hidden></div>
-        <div id="st"></div>
-        <audio id="out" controls hidden></audio>
-      </div>
+  <!-- ==================== LEFT: HISTORY / PUBLISHED ==================== -->
+  <aside class="col left">
+    <div class="left-head">
+      <button class="ltab on" data-tab="history">Runs</button>
+      <button class="ltab" data-tab="published">Published</button>
+      <button class="left-x" id="histClose" title="Close panel">&times;</button>
     </div>
 
-    <script>
-      const $ = (id) => document.getElementById(id);
-      const st = (message) => ($("st").textContent = message);
-      let lastWriteId = 0;
-      let experimentsCache = [];
-      let contextCache = [];
-      let voicesCache = [];
-      let tagList = [];
-      let activeFilter = "";
-      let contextCap = 80000;
+    <div id="tab-history">
+      <div class="hfilters">
+        <button class="hfilter on" data-filter="all">All</button>
+        <button class="hfilter" data-filter="Best so far">Best so far</button>
+        <button class="hfilter" data-filter="Good">Good</button>
+        <button class="hfilter" data-filter="Reject">Rejected</button>
+      </div>
+      <div id="runcards"></div>
+      <p class="hint" id="runsEmpty" hidden>No runs yet. Generate text to start.</p>
+    </div>
 
-      const TAG_COLORS = {
-        "day 1 pick": "#2563eb",
-        "day 2 pick": "#2563eb",
-        "day 3 pick": "#2563eb",
-        "day 4 pick": "#2563eb",
-        "day 5 pick": "#2563eb",
-        "best so far": "#16a34a",
-        chills: "#eab308",
-        "close, needs work": "#f97316",
-        rejected: "#dc2626",
-      };
+    <div id="tab-published" hidden>
+      <p class="hint" style="margin-bottom:8px">Publishing is not wired up yet. This is what it will look like.</p>
+      <div class="pcard">
+        <div class="h-title">The cave of self acceptance</div>
+        <div class="p-date">published 24/08</div>
+        <div class="stats">
+          <div class="stat"><b>14</b><span>signups</span></div>
+          <div class="stat"><b>9</b><span>plays</span></div>
+        </div>
+        <div class="p-row"><span class="url-pill">rw.link/p/k3f9</span><button class="copy">Copy</button><button class="copy">Open</button></div>
+        <details class="runlog"><summary>What's in it</summary><div class="body">
+          <div class="kv"><span class="k">Q1</span><span class="v">What do you want to meditate about</span></div>
+          <div class="kv"><span class="k">model</span><span class="v">claude-opus-4-8</span></div>
+          <div class="kv"><span class="k">voice</span><span class="v">Cave narrator &middot; eleven v3</span></div>
+          <div class="kv"><span class="k">music</span><span class="v">First_Embers.mp3</span></div>
+          <div class="kv"><span class="k">mix</span><span class="v">&minus;14 dB &middot; fades 4s/8s</span></div>
+          <div class="kv"><span class="k">docs</span><span class="v">marcus_aurelius L &middot; heraclitus S &middot; style_laws S &middot; guided_imagery M</span></div>
+        </div></details>
+        <details class="runlog"><summary>Signups (14)</summary><div class="body">
+          <div class="su"><span class="n">sofia@&hellip;</span><span class="pl">2&times;</span><span class="d">26/08</span></div>
+          <div class="su"><span class="n">m.chen@&hellip;</span><span class="pl">1&times;</span><span class="d">25/08</span></div>
+          <div class="su"><span class="n">jbaptiste@&hellip;</span><span class="pl zero">0</span><span class="d">25/08</span></div>
+          <div class="su"><span class="n">ana&iuml;s.r@&hellip;</span><span class="pl">3&times;</span><span class="d">24/08</span></div>
+          <div class="su"><span style="text-decoration:underline;cursor:pointer;color:var(--muted)">show all 14</span></div>
+        </div></details>
+      </div>
+      <p class="hint" style="margin-top:4px">Visitors sign in with their ReWire account to try a protocol.</p>
+    </div>
+  </aside>
 
-      function esc(text) {
-        const div = document.createElement("div");
-        div.textContent = text || "";
-        return div.innerHTML;
-      }
+  <div class="left-rail"><button id="histReopen" title="Open panel">&#9703;</button></div>
 
-      async function api(path, options = {}) {
-        const response = await fetch(path, options);
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.detail || "request failed");
-        return data;
-      }
+  <!-- ==================== COMPOSE ==================== -->
+  <main class="col compose">
 
-      function setLoading(button, on) {
-        button.classList.toggle("loading", on);
-        button.disabled = on;
-      }
+    <details class="sec" open>
+      <summary>Questions</summary>
+      <div class="body">
+        <div id="qlist"></div>
+        <button class="addq" id="addq">+ Add question</button>
+      </div>
+    </details>
 
-      function clearAudio() {
-        const player = $("out");
-        player.pause();
-        player.removeAttribute("src");
-        player.hidden = true;
-      }
+    <details class="sec">
+      <summary>Music</summary>
+      <div class="body">
+        <div class="row-flex">
+          <button class="btn" style="flex:1" id="musicChoose">Choose a file</button>
+          <button class="btn" id="musicRemove">Remove</button>
+        </div>
+        <p class="hint mono" id="musicName"></p>
+        <input type="file" id="musicInput" accept="audio/*" hidden>
+      </div>
+    </details>
 
-      function updateMixNote() {
-        const note = $("mixNote");
-        if ($("mixPy").value.trim()) {
-          note.hidden = true;
-          return;
-        }
-        const musicFile = $("music").files[0];
-        if (musicFile) {
-          note.textContent =
-            "no mix file, the plain default mix will be used over " +
-            musicFile.name;
-        } else {
-          note.textContent =
-            "no mix file and no music, make mp3 will output voice only";
-        }
-        note.hidden = false;
-      }
+    <details class="sec">
+      <summary>Prompt</summary>
+      <div class="body">
+        <div class="row2">
+          <div><label class="field-label">Model</label><select class="tselect tinput" id="modelSel"><option>claude-opus-4-8</option><option>claude-fable-5</option><option>claude-sonnet-4-6</option></select></div>
+          <div></div>
+        </div>
+        <details class="subdetails" open><summary>prompt.py &mdash; edit</summary><div class="body">
+          <textarea class="codebox" id="promptPy" placeholder="Paste the prompt file here"></textarea>
+        </div></details>
 
-      $("mixPy").addEventListener("input", updateMixNote);
-      $("music").addEventListener("change", updateMixNote);
+        <div class="ctx-group">
+          <div class="g-name">Substance<button class="g-add" data-group="substance">+ Add doc</button></div>
+          <div id="ctx-substance"></div>
+        </div>
+        <div class="ctx-group">
+          <div class="g-name">Form<button class="g-add" data-group="form">+ Add doc</button></div>
+          <div id="ctx-form"></div>
+        </div>
+        <div class="ctx-group">
+          <div class="g-name">Technique<button class="g-add" data-group="technique">+ Add doc</button></div>
+          <div id="ctx-technique"></div>
+        </div>
+        <input type="file" id="ctxInput" accept=".pdf,.docx,.txt,.md" hidden>
+        <div class="budget">
+          <div class="nums"><span>context budget</span><span><b style="color:var(--ink)" id="ctxUsed">0k</b> / 80k</span></div>
+          <div class="bar"><div class="fill" id="ctxFill" style="width:0%"></div></div>
+          <p class="hint" style="margin-top:4px">small &le;10k &middot; medium &le;20k &middot; large &le;40k characters</p>
+        </div>
+      </div>
+    </details>
 
-      function updateTtsHint() {
-        const provider = $("tts").value;
-        if (provider === "eleven_v2") {
-          $("ttsHint").textContent =
-            "eleven v2: pauses up to 3s are rendered by the model itself, one call, no stitching. No audio tags, write with punctuation and pauses only. Same voice IDs, will sound different from v3.";
-        } else {
-          $("ttsHint").textContent =
-            "eleven v3: [pause] 3s, [long pause] 6s, break tags any length, all become exact silence. Stacking adds up.";
-        }
-      }
-      $("tts").addEventListener("change", updateTtsHint);
-
-      // voices
-
-      async function loadVoices() {
-        try {
-          const data = await api("/api/bench/voices");
-          voicesCache = data.voices;
-          const select = $("voiceSaved");
-          const current = select.value;
-          select.innerHTML = '<option value="">saved voices</option>';
-          data.voices.forEach((voice) => {
-            const option = document.createElement("option");
-            option.value = voice.voice_id;
-            option.textContent = voice.name;
-            select.appendChild(option);
-          });
-          if (current) select.value = current;
-        } catch (error) {}
-      }
-
-      $("voiceSaved").onchange = () => {
-        const voiceId = $("voiceSaved").value;
-        resetDeleteText("voiceDelete", "Delete");
-        if (!voiceId) return;
-        $("voice").value = voiceId;
-        const found = voicesCache.find((item) => item.voice_id === voiceId);
-        $("voiceName").value = found ? found.name : "";
-        st("using voice " + (found ? found.name : voiceId));
-      };
-
-      $("voiceSave").onclick = async () => {
-        const name = $("voiceName").value.trim();
-        const voiceId = $("voice").value.trim();
-        if (!name) {
-          st("type a name for this voice first");
-          return;
-        }
-        if (!voiceId) {
-          st("paste a voice ID first");
-          return;
-        }
-        try {
-          await api("/api/bench/voices", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name, voice_id: voiceId }),
-          });
-          st("saved voice " + name);
-          await loadVoices();
-          $("voiceSaved").value = voiceId;
-        } catch (error) {
-          st(error.message);
-        }
-      };
-
-      $("voiceDelete").onclick = async () => {
-        const voiceId = $("voiceSaved").value;
-        if (!voiceId) {
-          st("pick a saved voice to delete");
-          return;
-        }
-        const found = voicesCache.find((item) => item.voice_id === voiceId);
-        if (!found) return;
-        if ($("voiceDelete").textContent !== "Confirm delete") {
-          $("voiceDelete").textContent = "Confirm delete";
-          setTimeout(() => resetDeleteText("voiceDelete", "Delete"), 4000);
-          return;
-        }
-        try {
-          await api("/api/bench/voices/" + found.id, { method: "DELETE" });
-          st("deleted voice " + found.name);
-          resetDeleteText("voiceDelete", "Delete");
-          loadVoices();
-        } catch (error) {
-          st(error.message);
-        }
-      };
-
-      // context library
-
-      async function loadContext() {
-        try {
-          const data = await api("/api/bench/context");
-          contextCache = data.context;
-          contextCap = data.cap || contextCap;
-          renderContext();
-        } catch (error) {}
-      }
-
-      function renderContext() {
-        const list = $("ctxList");
-        if (!contextCache.length) {
-          list.innerHTML =
-            '<div style="font-size:13px;color:#aaa;padding:6px 0">no context files yet</div>';
-          updateContextCount();
-          return;
-        }
-        list.innerHTML = contextCache
-          .map(
-            (file) => `
-        <div class="ctxitem">
-          <input type="checkbox" data-ctx="${file.id}" />
-          <div class="ctxname">
-            ${esc(file.name)}
-            <div class="ctxmeta">${esc(file.kind)} · ${file.chars} chars · ${esc(file.note || "")}</div>
+    <details class="sec">
+      <summary>Voice</summary>
+      <div class="body">
+        <div class="row2">
+          <div><label class="field-label">Saved voice</label><select class="tselect tinput" id="voiceSel"></select></div>
+          <div><label class="field-label">Voice ID</label><input class="tinput mono" id="voiceId" placeholder="ElevenLabs voice id"></div>
+        </div>
+        <div class="row-flex">
+          <input class="tinput" id="voiceName" placeholder="Name this voice to save it">
+          <button class="btn" id="voiceSave">Save</button><button class="btn" id="voiceDelete">Delete</button>
+        </div>
+        <div class="row2">
+          <div><label class="field-label">TTS engine</label><select class="tselect tinput" id="engineSel"><option value="elevenlabs">eleven v3</option><option value="eleven_v2">eleven v2</option></select></div>
+          <div><label class="field-label">Stability / Style / Boost</label>
+            <div class="row-flex"><input class="tinput mono" id="stab" value="0.5"><input class="tinput mono" id="styleV" value="0"><select class="tselect tinput" id="boostSel"><option>on</option><option>off</option></select></div>
           </div>
-          <a href="#" data-ctxdel="${file.id}">delete</a>
-        </div>`,
-          )
-          .join("");
-
-        list.querySelectorAll("[data-ctx]").forEach((box) => {
-          box.onchange = updateContextCount;
-        });
-        list.querySelectorAll("[data-ctxdel]").forEach((link) => {
-          link.onclick = async (event) => {
-            event.preventDefault();
-            if (link.textContent !== "confirm") {
-              link.textContent = "confirm";
-              setTimeout(() => {
-                link.textContent = "delete";
-              }, 4000);
-              return;
-            }
-            try {
-              await api("/api/bench/context/" + link.dataset.ctxdel, {
-                method: "DELETE",
-              });
-              st("context file deleted");
-              loadContext();
-            } catch (error) {
-              st(error.message);
-            }
-          };
-        });
-        updateContextCount();
-      }
-
-      function selectedContextIds() {
-        return Array.from(
-          document.querySelectorAll("[data-ctx]:checked"),
-        ).map((box) => box.dataset.ctx);
-      }
-
-      function updateContextCount() {
-        const ids = selectedContextIds();
-        const counter = $("ctxCount");
-        if (!ids.length) {
-          counter.textContent = "nothing selected, no context will be sent";
-          counter.classList.remove("over");
-          return;
-        }
-        let total = 0;
-        ids.forEach((id) => {
-          const found = contextCache.find(
-            (file) => String(file.id) === String(id),
-          );
-          if (found) total += found.chars;
-        });
-        const over = total > contextCap;
-        counter.textContent =
-          ids.length +
-          " selected, " +
-          total +
-          " chars of a " +
-          contextCap +
-          " cap" +
-          (over ? ", the extra will be cut off" : "");
-        counter.classList.toggle("over", over);
-      }
-
-      $("ctxUpload").onclick = async () => {
-        const file = $("ctxFile").files[0];
-        if (!file) {
-          st("pick a file to upload");
-          return;
-        }
-        st("uploading and reading " + file.name);
-        setLoading($("ctxUpload"), true);
-        try {
-          const form = new FormData();
-          form.append("kind", $("ctxKind").value);
-          form.append("file", file);
-          const saved = await api("/api/bench/context", {
-            method: "POST",
-            body: form,
-          });
-          st("added " + saved.name + ", " + saved.chars + " chars");
-          $("ctxFile").value = "";
-          await loadContext();
-          const box = document.querySelector('[data-ctx="' + saved.id + '"]');
-          if (box) {
-            box.checked = true;
-            updateContextCount();
-          }
-        } catch (error) {
-          st(error.message);
-        }
-        setLoading($("ctxUpload"), false);
-      };
-
-      // protocol chaining
-
-      function renderPriorSelect() {
-        const select = $("prior");
-        const current = select.value;
-        select.innerHTML =
-          '<option value="">nothing, this is day 1</option>';
-        experimentsCache
-          .filter((experiment) => experiment.speech_text)
-          .forEach((experiment) => {
-            const option = document.createElement("option");
-            option.value = experiment.id;
-            option.textContent =
-              "#" +
-              experiment.id +
-              " " +
-              (experiment.title || experiment.topic || "untitled");
-            select.appendChild(option);
-          });
-        if (current) select.value = current;
-        updatePriorNote();
-      }
-
-      async function updatePriorNote() {
-        const id = $("prior").value;
-        if (!id) {
-          $("priorNote").textContent =
-            "Pick an earlier piece to build a protocol. Everything before it is sent to the model in order, with its reflections.";
-          return;
-        }
-        try {
-          const data = await api("/api/bench/experiments/" + id + "/chain");
-          const upTo = data.experiments.filter(
-            (experiment) => experiment.id <= Number(id),
-          );
-          const next = upTo.length + 1;
-          $("priorNote").textContent =
-            "This will be day " +
-            next +
-            " of protocol " +
-            data.protocol_id +
-            ". " +
-            upTo.length +
-            " earlier piece" +
-            (upTo.length === 1 ? "" : "s") +
-            " will be sent with it.";
-          const root = data.experiments[0];
-          if (root && root.topic && !$("answer").value.trim()) {
-            $("answer").value = root.topic;
-            st("filled the topic from the start of this protocol");
-          }
-        } catch (error) {
-          $("priorNote").textContent = error.message;
-        }
-      }
-
-      $("prior").onchange = updatePriorNote;
-
-      // write and make
-
-      function showWriteInfo(wordCount, validation) {
-        $("writeInfo").classList.add("show");
-        $("wordCount").textContent = wordCount + " words";
-        if (validation && validation.trim()) {
-          $("validation").innerHTML =
-            '<div class="vhead">validate() found problems</div>' +
-            esc(validation);
-          $("validation").classList.add("show");
-          $("validationOk").classList.remove("show");
-        } else {
-          $("validation").classList.remove("show");
-          $("validationOk").classList.add("show");
-        }
-      }
-
-      function hideWriteInfo() {
-        $("writeInfo").classList.remove("show");
-        $("validation").classList.remove("show");
-        $("validationOk").classList.remove("show");
-      }
-
-      $("write").onclick = async () => {
-        if (!$("promptPy").value.trim()) {
-          st("paste a prompt file first");
-          return;
-        }
-        $("speech").value = "";
-        hideWriteInfo();
-        clearAudio();
-        lastWriteId = 0;
-        st("writing");
-        setLoading($("write"), true);
-        try {
-          const data = await api("/api/bench/write", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              topic: $("answer").value,
-              prompt_py: $("promptPy").value,
-              model: $("model").value,
-              context_ids: selectedContextIds().join(","),
-              prior_id: Number($("prior").value || 0),
-            }),
-          });
-          $("speech").value = data.speech;
-          lastWriteId = data.experiment_id;
-          showWriteInfo(data.word_count, data.validation);
-          st(
-            "text saved as experiment " +
-              data.experiment_id +
-              ", day " +
-              data.day_number +
-              ", prompt from " +
-              data.prompt_source,
-          );
-          loadHistory();
-        } catch (error) {
-          st(error.message);
-        }
-        setLoading($("write"), false);
-      };
-
-      function appendMixSettings(form) {
-        form.append("music_gain_db", $("musicGain").value);
-        form.append("voice_lufs", $("voiceLufs").value);
-        form.append("sync_mode", $("syncMode").value);
-        form.append("mix_profile", $("mixProfile").value);
-      }
-
-      async function render(voiceOnly) {
-        if (!$("speech").value.trim()) {
-          st("speech text is empty, use write answer or paste one");
-          return;
-        }
-        if (!$("voice").value.trim()) {
-          st("paste a voice ID");
-          return;
-        }
-        clearAudio();
-        const pressed = voiceOnly ? $("voiceOnly") : $("make");
-        st(
-          voiceOnly
-            ? "making voice, around a minute"
-            : "making, this takes a minute or two",
-        );
-        setLoading(pressed, true);
-        $("make").disabled = true;
-        $("voiceOnly").disabled = true;
-        try {
-          const form = new FormData();
-          form.append("topic", $("answer").value);
-          form.append("speech", $("speech").value);
-          form.append("prompt_py", $("promptPy").value);
-          form.append("mix_py", $("mixPy").value);
-          form.append("model", $("model").value);
-          form.append("voice_id", $("voice").value.trim());
-          form.append("stability", $("stab").value);
-          form.append("style", $("style").value);
-          form.append("boost", $("boost").checked);
-          form.append("tts_provider", $("tts").value);
-          form.append("experiment_id", lastWriteId);
-          form.append("voice_only", voiceOnly);
-          appendMixSettings(form);
-          const musicFile = $("music").files[0];
-          if (musicFile && !voiceOnly) form.append("music", musicFile);
-          const experiment = await api("/api/bench/make", {
-            method: "POST",
-            body: form,
-          });
-          lastWriteId = 0;
-          $("out").src = experiment.mix_url || experiment.voice_url;
-          $("out").hidden = false;
-          st(
-            "done, experiment " +
-              experiment.id +
-              ", " +
-              experiment.mix_source +
-              (experiment.music_filename
-                ? ", " + experiment.music_filename
-                : ""),
-          );
-          loadHistory();
-        } catch (error) {
-          st(error.message);
-        }
-        setLoading(pressed, false);
-        $("make").disabled = false;
-        $("voiceOnly").disabled = false;
-      }
-
-      $("make").onclick = () => render(false);
-      $("voiceOnly").onclick = () => render(true);
-
-      // history
-
-      async function loadHistory() {
-        try {
-          const data = await api("/api/bench/experiments");
-          experimentsCache = data.experiments;
-          tagList = data.tags || [];
-          renderTagFilter();
-          renderHistory();
-          renderPriorSelect();
-        } catch (error) {}
-      }
-
-      function renderTagFilter() {
-        const bar = $("tagFilter");
-        const chips = [["", "all"]].concat(tagList.map((tag) => [tag, tag]));
-        bar.innerHTML = chips
-          .map(
-            ([value, label]) =>
-              '<span class="chip' +
-              (activeFilter === value ? " active" : "") +
-              '" data-filter="' +
-              esc(value) +
-              '"' +
-              (value && activeFilter !== value
-                ? ' style="color:' + TAG_COLORS[value] + '"'
-                : "") +
-              ">" +
-              esc(label) +
-              "</span>",
-          )
-          .join("");
-        bar.querySelectorAll("[data-filter]").forEach((chip) => {
-          chip.onclick = () => {
-            activeFilter = chip.dataset.filter;
-            renderTagFilter();
-            renderHistory();
-          };
-        });
-      }
-
-      function groupByProtocol(experiments) {
-        const groups = new Map();
-        experiments.forEach((experiment) => {
-          const key = experiment.protocol_id || experiment.id;
-          if (!groups.has(key)) groups.set(key, []);
-          groups.get(key).push(experiment);
-        });
-        const ordered = Array.from(groups.entries()).map(([key, items]) => {
-          items.sort((a, b) => {
-            if (a.day_number !== b.day_number)
-              return a.day_number - b.day_number;
-            return a.id - b.id;
-          });
-          return { key: key, items: items, newest: Math.max(...items.map((i) => i.id)) };
-        });
-        ordered.sort((a, b) => b.newest - a.newest);
-        return ordered;
-      }
-
-      function renderHistory() {
-        const list = $("expList");
-        let experiments = experimentsCache;
-        if (activeFilter) {
-          experiments = experiments.filter(
-            (experiment) => experiment.tag === activeFilter,
-          );
-        }
-        if (!experiments.length) {
-          list.innerHTML =
-            '<div style="font-size:13px;color:#aaa;margin-top:8px">' +
-            (activeFilter ? "nothing tagged " + esc(activeFilter) : "no experiments yet") +
-            "</div>";
-          return;
-        }
-
-        const groups = groupByProtocol(experiments);
-        list.innerHTML = groups
-          .map((group) => {
-            const header =
-              group.items.length > 1
-                ? '<div class="protohead">protocol ' +
-                  group.key +
-                  ", " +
-                  group.items.length +
-                  " pieces</div>"
-                : "";
-            return (
-              '<div class="protogroup">' +
-              header +
-              group.items.map(cardHtml).join("") +
-              "</div>"
-            );
-          })
-          .join("");
-
-        wireCards(list);
-      }
-
-      function cardHtml(experiment) {
-        const when = new Date(experiment.created_at).toLocaleString();
-        const remixTag = experiment.parent_id
-          ? " remix of " + experiment.parent_id
-          : "";
-        const audioUrl = experiment.mix_url || experiment.voice_url;
-        const source = audioUrl
-          ? experiment.mix_source || "unknown mix"
-          : "text only, not voiced";
-        const stripe = experiment.tag
-          ? TAG_COLORS[experiment.tag] || "#eee"
-          : "#eee";
-        const gainBits = [];
-        if (experiment.music_gain_db !== null && experiment.music_gain_db !== undefined)
-          gainBits.push("music " + experiment.music_gain_db + " dB");
-        if (experiment.voice_lufs !== null && experiment.voice_lufs !== undefined)
-          gainBits.push("voice " + experiment.voice_lufs + " LUFS");
-        if (experiment.sync_mode) gainBits.push(esc(experiment.sync_mode));
-        if (experiment.mix_profile) gainBits.push(esc(experiment.mix_profile));
-
-        const params =
-          "voice " +
-          esc(experiment.voice_id || "none") +
-          ", tts " +
-          esc(experiment.tts_provider || "elevenlabs") +
-          ", stability " +
-          experiment.stability +
-          ", style " +
-          experiment.style +
-          ", boost " +
-          (experiment.boost ? "on" : "off") +
-          (experiment.model ? ", " + esc(experiment.model) : "") +
-          (experiment.word_count ? ", " + experiment.word_count + " words" : "") +
-          (experiment.music_filename
-            ? ", music " + esc(experiment.music_filename)
-            : "") +
-          (gainBits.length ? ", " + gainBits.join(", ") : "");
-
-        const tagOptions = ['<option value="">no tag</option>']
-          .concat(
-            tagList.map(
-              (tag) =>
-                '<option value="' +
-                esc(tag) +
-                '"' +
-                (experiment.tag === tag ? " selected" : "") +
-                ">" +
-                esc(tag) +
-                "</option>",
-            ),
-          )
-          .join("");
-
-        return `
-    <div class="exp" data-id="${experiment.id}" style="border-left-color:${stripe}">
-      <div class="meta">#${experiment.id}${remixTag} · day ${experiment.day_number} · ${esc(when)}</div>
-      <div class="titlebox">
-        <input type="text" data-title="${experiment.id}" value="${esc(experiment.title || "")}" placeholder="untitled" />
+        </div>
+        <p class="hint mono" id="pauseHint">[pause] 3s &middot; [long pause] 6s &middot; break tags exact, stacking adds up</p>
       </div>
-      ${experiment.topic ? '<div class="topic clamp" data-topic="' + experiment.id + '">' + esc(experiment.topic) + '</div><a href="#" class="more" data-moretopic="' + experiment.id + '">see more</a>' : ""}
-      <div class="source">${esc(source)}</div>
-      ${audioUrl ? '<audio controls preload="none" src="' + audioUrl + '"></audio>' : ""}
-      <div class="links">
-        ${experiment.mix_url ? '<a href="' + experiment.mix_url + '" download>download mix</a>' : ""}
-        ${experiment.voice_url ? '<a href="' + experiment.voice_url + '" download>download voice</a>' : ""}
-        ${experiment.prompt_py ? '<a href="#" data-dlfile="prompt" data-id="' + experiment.id + '">prompt.py</a>' : ""}
-        ${experiment.mix_py ? '<a href="#" data-dlfile="mix" data-id="' + experiment.id + '">mix.py</a>' : ""}
-        ${experiment.prompt_py || experiment.mix_py ? '<a href="#" data-usefiles="' + experiment.id + '">use these files</a>' : ""}
-        ${experiment.speech_text ? '<a href="#" data-continue="' + experiment.id + '">continue from this</a>' : ""}
-        ${experiment.voice_url ? '<a href="#" data-remix="' + experiment.id + '">' + ($("mixPy").value.trim() ? "remix with current mix.py" : "remix") + "</a>" : ""}
-        ${experiment.speech_text ? '<a href="#" data-showtext="' + experiment.id + '">show text</a>' : ""}
-        <a href="/api/bench/experiments/${experiment.id}/zip" download>zip</a>
-        <a href="#" data-del="${experiment.id}" style="color:#b00">delete</a>
+    </details>
+
+    <details class="sec">
+      <summary>Mix</summary>
+      <div class="body">
+        <div class="row2">
+          <div><label class="field-label">Voice / music balance</label><input class="tinput mono" id="balance" placeholder="-14 dB"></div>
+          <div><label class="field-label">Fade in / out</label><input class="tinput mono" id="fades" placeholder="4s / 8s"></div>
+        </div>
+        <div class="row2">
+          <div><label class="field-label">[pause]</label><input class="tinput mono" id="pauseS" value="3s"></div>
+          <div><label class="field-label">[long pause]</label><input class="tinput mono" id="longPauseS" value="6s"></div>
+        </div>
+        <p class="hint mono">break tags keep their stated length &middot; all become exact silence &middot; stacking adds up</p>
+        <button class="addq" id="addElement">+ Add element</button>
+        <details class="subdetails"><summary>mix.py &mdash; edit</summary><div class="body">
+          <textarea class="codebox" id="mixPy" placeholder="Paste a mix file, or leave empty for the bench default"></textarea>
+        </div></details>
       </div>
-      ${experiment.speech_text ? '<div class="speechtext" data-text="' + experiment.id + '">' + esc(experiment.speech_text) + "</div>" : ""}
-      ${experiment.validation ? '<div class="validation">validate(): ' + esc(experiment.validation) + "</div>" : ""}
-      <div class="vrow">
-        <button class="${experiment.verdict === "worked" ? "on" : "off"}" data-verdict="worked" data-id="${experiment.id}">worked</button>
-        <button class="${experiment.verdict === "did not work" ? "on" : "off"}" data-verdict="did not work" data-id="${experiment.id}">did not work</button>
+    </details>
+
+    <div class="row-flex">
+      <button class="btn" id="saveBtn" style="padding:9px 18px">Save</button>
+      <button class="btn primary genbtn" id="genText" style="flex:1">Generate text</button>
+    </div>
+
+  </main>
+
+  <!-- ==================== SPEECH ==================== -->
+  <section class="col doc">
+    <div class="doc-head">
+      <span class="title">Speech</span>
+      <span class="meta" id="docMeta">no run yet</span>
+      <div class="right">
+        <span class="edit-pill" id="chgcount">0 changes &middot; 0 marks</span>
+        <button class="btn primary btn small" id="updatePrompt">Update prompt</button>
       </div>
-      <div class="tagrow">
-        <select data-tagfor="${experiment.id}" style="${experiment.tag ? "border-color:" + stripe + ";color:" + stripe : ""}">${tagOptions}</select>
+    </div>
+    <div class="doc-body" id="docBody">
+      <div class="gen-dots"><i></i><i></i><i></i><div style="margin-top:8px">generating speech</div></div>
+      <div class="page" contenteditable="true" spellcheck="false" id="page"></div>
+    </div>
+    <div class="doc-foot">
+      <div class="foot-row">
+        <p class="hint">Select text to mark it good or bad and comment. Typing shows in red. Update prompt rewrites the prompt from all of it.</p>
+        <button class="btn" id="genmp3">Generate mp3</button>
       </div>
-      <div class="boxlabel">comment, your note on the mix and the audio</div>
-      <textarea rows="2" placeholder="comment" data-comment="${experiment.id}">${esc(experiment.comment)}</textarea>
-      <button class="sec savebtn" data-save="${experiment.id}">save comment</button>
-      <div class="boxlabel">reflection, what the listener said, sent to the next day</div>
-      <textarea rows="2" placeholder="reflection" data-reflection="${experiment.id}">${esc(experiment.reflection)}</textarea>
-      <button class="sec savebtn" data-savereflection="${experiment.id}">save reflection</button>
-      ${experiment.run_log ? '<details class="log"><summary>run log</summary><pre class="logtext">' + esc(experiment.run_log) + "</pre></details>" : ""}
-      <div class="params">${params}</div>
-    </div>`;
-      }
+      <div id="mp3row">
+        <div class="player" id="docPlayer"><button class="play">&#9654;</button><div class="track"></div><span class="t">0:00 / 0:00</span></div>
+        <div class="foot-row">
+          <p class="hint">Publishing creates a public page with a tiny url where people answer the questions.</p>
+          <button class="btn primary" id="publish">Publish</button>
+        </div>
+        <div class="pub-done" id="pubdone">Published<span class="url-pill">rw.link/p/x7f2</span><button class="copy btn small">Copy</button></div>
+      </div>
+    </div>
+  </section>
 
-      function wireCards(list) {
-        list.querySelectorAll("[data-moretopic]").forEach((link) => {
-          const topic = list.querySelector(
-            '.topic[data-topic="' + link.dataset.moretopic + '"]',
-          );
-          if (topic.scrollHeight > topic.clientHeight + 1)
-            link.classList.add("show");
-          link.onclick = (event) => {
-            event.preventDefault();
-            const clamped = topic.classList.toggle("clamp");
-            link.textContent = clamped ? "see more" : "see less";
-          };
-        });
-        list.querySelectorAll("[data-verdict]").forEach((button) => {
-          button.onclick = () =>
-            saveVerdict(button.dataset.id, button.dataset.verdict);
-        });
-        list.querySelectorAll("[data-save]").forEach((button) => {
-          button.onclick = () => saveVerdict(button.dataset.save, null);
-        });
-        list.querySelectorAll("[data-savereflection]").forEach((button) => {
-          button.onclick = () => saveReflection(button.dataset.savereflection);
-        });
-        list.querySelectorAll("[data-tagfor]").forEach((select) => {
-          select.onchange = () => saveTag(select.dataset.tagfor, select.value);
-        });
-        list.querySelectorAll("[data-title]").forEach((input) => {
-          input.onblur = () => saveTitle(input.dataset.title, input.value);
-          input.onkeydown = (event) => {
-            if (event.key === "Enter") input.blur();
-          };
-        });
-        list.querySelectorAll("[data-remix]").forEach((link) => {
-          link.onclick = (event) => {
-            event.preventDefault();
-            remix(link.dataset.remix);
-          };
-        });
-        list.querySelectorAll("[data-continue]").forEach((link) => {
-          link.onclick = (event) => {
-            event.preventDefault();
-            $("prior").value = link.dataset.continue;
-            updatePriorNote();
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          };
-        });
-        list.querySelectorAll("[data-showtext]").forEach((link) => {
-          link.onclick = (event) => {
-            event.preventDefault();
-            const block = list.querySelector(
-              '.speechtext[data-text="' + link.dataset.showtext + '"]',
-            );
-            const showing = block.classList.toggle("show");
-            link.textContent = showing ? "hide text" : "show text";
-          };
-        });
-        list.querySelectorAll("[data-dlfile]").forEach((link) => {
-          link.onclick = (event) => {
-            event.preventDefault();
-            downloadCardFile(link.dataset.id, link.dataset.dlfile);
-          };
-        });
-        list.querySelectorAll("[data-usefiles]").forEach((link) => {
-          link.onclick = (event) => {
-            event.preventDefault();
-            useCardFiles(link.dataset.usefiles);
-          };
-        });
-        list.querySelectorAll("[data-del]").forEach((link) => {
-          link.onclick = async (event) => {
-            event.preventDefault();
-            if (link.textContent !== "confirm delete") {
-              link.textContent = "confirm delete";
-              setTimeout(() => {
-                link.textContent = "delete";
-              }, 4000);
-              return;
-            }
-            try {
-              const result = await api(
-                "/api/bench/experiments/" + link.dataset.del,
-                { method: "DELETE" },
-              );
-              const kept = (result.kept_shared || []).length;
-              st(
-                "deleted" +
-                  (kept
-                    ? ", kept " + kept + " file shared with another experiment"
-                    : ""),
-              );
-              loadHistory();
-            } catch (error) {
-              st(error.message);
-            }
-          };
-        });
-      }
+</div>
 
-      function downloadCardFile(id, kind) {
-        const experiment = experimentsCache.find(
-          (candidate) => String(candidate.id) === String(id),
-        );
-        if (!experiment) return;
-        const content =
-          kind === "prompt" ? experiment.prompt_py : experiment.mix_py;
-        if (!content) return;
-        const blob = new Blob([content], { type: "text/x-python" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = kind + ".py";
-        link.click();
-        URL.revokeObjectURL(link.href);
-      }
+<div class="pop" id="pop">
+  <button class="thumb" id="thumbUp">&#128077;</button>
+  <button class="thumb" id="thumbDown">&#128078;</button>
+  <input id="popComment" placeholder="Comment">
+  <button class="btn small primary" id="popSave">Save</button>
+</div>
 
-      function useCardFiles(id) {
-        const experiment = experimentsCache.find(
-          (candidate) => String(candidate.id) === String(id),
-        );
-        if (!experiment) return;
-        if (experiment.prompt_py) $("promptPy").value = experiment.prompt_py;
-        if (experiment.mix_py) $("mixPy").value = experiment.mix_py;
-        if (experiment.topic) $("answer").value = experiment.topic;
-        if (experiment.voice_id) $("voice").value = experiment.voice_id;
-        if (experiment.music_gain_db !== null && experiment.music_gain_db !== undefined)
-          $("musicGain").value = experiment.music_gain_db;
-        if (experiment.voice_lufs !== null && experiment.voice_lufs !== undefined)
-          $("voiceLufs").value = experiment.voice_lufs;
-        if (experiment.sync_mode) $("syncMode").value = experiment.sync_mode;
-        if (experiment.mix_profile) $("mixProfile").value = experiment.mix_profile;
-        updateMixNote();
-        st("loaded the settings from experiment " + id + " into the boxes");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+<script>
+// ---------------- api ----------------
+async function apiGet(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(await errText(r));
+  return r.json();
+}
+async function apiJson(url, body, method){
+  const r = await fetch(url, {method: method || 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  if(!r.ok) throw new Error(await errText(r));
+  return r.json();
+}
+async function apiForm(url, formData){
+  const r = await fetch(url, {method: 'POST', body: formData});
+  if(!r.ok) throw new Error(await errText(r));
+  return r.json();
+}
+async function apiDelete(url){
+  const r = await fetch(url, {method: 'DELETE'});
+  if(!r.ok) throw new Error(await errText(r));
+  return r.json();
+}
+async function errText(r){
+  try{ const d = await r.json(); return d.detail || JSON.stringify(d); }
+  catch(_){ return r.status + ' ' + r.statusText; }
+}
+function esc(text){
+  const d = document.createElement('div'); d.textContent = text == null ? '' : String(text); return d.innerHTML;
+}
 
-      async function saveVerdict(id, verdict) {
-        const card = document.querySelector('.exp[data-id="' + id + '"]');
-        const comment = card.querySelector("[data-comment]").value;
-        if (verdict === null) {
-          const onButton = card.querySelector(".vrow button.on");
-          verdict = onButton ? onButton.dataset.verdict : "";
-        } else {
-          const current = card.querySelector(".vrow button.on");
-          if (current && current.dataset.verdict === verdict) verdict = "";
-        }
-        try {
-          await api("/api/bench/experiments/" + id + "/verdict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ verdict: verdict, comment: comment }),
-          });
-          card.querySelectorAll(".vrow button").forEach((button) => {
-            button.className =
-              button.dataset.verdict === verdict ? "on" : "off";
-          });
-          const cached = experimentsCache.find(
-            (experiment) => String(experiment.id) === String(id),
-          );
-          if (cached) {
-            cached.verdict = verdict;
-            cached.comment = comment;
-          }
-          st("saved on experiment " + id);
-        } catch (error) {
-          st(error.message);
-        }
-      }
+// ---------------- state ----------------
+const state = {
+  questions: [{question: 'What do you want to meditate about', answer: ''}],
+  model: 'claude-opus-4-8',
+  contextSelected: [],
+  engine: 'elevenlabs',
+  musicRef: '', musicName: '',
+  experimentId: 0, dayNumber: 1, originalSpeech: ''
+};
+let musicUpload = null;
+let contextDocs = [];
+let voices = [];
+let experiments = [];
+let filterTag = 'all';
 
-      async function saveReflection(id) {
-        const card = document.querySelector('.exp[data-id="' + id + '"]');
-        const reflection = card.querySelector("[data-reflection]").value;
-        try {
-          await api("/api/bench/experiments/" + id + "/reflection", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reflection: reflection }),
-          });
-          const cached = experimentsCache.find(
-            (experiment) => String(experiment.id) === String(id),
-          );
-          if (cached) cached.reflection = reflection;
-          st("reflection saved on experiment " + id);
-        } catch (error) {
-          st(error.message);
-        }
-      }
+const el = id => document.getElementById(id);
 
-      async function saveTag(id, tag) {
-        try {
-          await api("/api/bench/experiments/" + id + "/tag", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tag: tag }),
-          });
-          const cached = experimentsCache.find(
-            (experiment) => String(experiment.id) === String(id),
-          );
-          if (cached) cached.tag = tag;
-          const card = document.querySelector('.exp[data-id="' + id + '"]');
-          const colour = tag ? TAG_COLORS[tag] || "#eee" : "#eee";
-          if (card) {
-            card.style.borderLeftColor = colour;
-            const select = card.querySelector("[data-tagfor]");
-            if (select) {
-              select.style.borderColor = tag ? colour : "";
-              select.style.color = tag ? colour : "";
-            }
-          }
-          st(tag ? "tagged " + tag : "tag cleared");
-          if (activeFilter) renderHistory();
-        } catch (error) {
-          st(error.message);
-        }
-      }
+// ---------------- number parsing, inputs accept "3s", "-14 dB", "4s / 8s" ----------------
+function firstNumber(text){
+  const m = String(text || '').match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+function twoNumbers(text){
+  const m = String(text || '').match(/-?\d+(\.\d+)?/g);
+  if(!m) return [null, null];
+  return [parseFloat(m[0]), m.length > 1 ? parseFloat(m[1]) : null];
+}
+function pauseToMs(text, fallbackMs){
+  const n = firstNumber(text);
+  return n == null ? fallbackMs : Math.round(n * 1000);
+}
 
-      async function saveTitle(id, title) {
-        const cached = experimentsCache.find(
-          (experiment) => String(experiment.id) === String(id),
-        );
-        if (cached && cached.title === title.trim()) return;
-        try {
-          await api("/api/bench/experiments/" + id + "/title", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title: title }),
-          });
-          if (cached) cached.title = title.trim();
-          renderPriorSelect();
-          st("name saved on experiment " + id);
-        } catch (error) {
-          st(error.message);
-        }
-      }
+// ---------------- questions ----------------
+function renderQuestions(){
+  const wrap = el('qlist');
+  wrap.innerHTML = '';
+  state.questions.forEach((qa, index) => {
+    const d = document.createElement('div'); d.className = 'q';
+    d.innerHTML = '<div class="q-line"><span class="q-num">Q' + (index + 1) + '</span>'
+      + '<span class="q-text" contenteditable="true" spellcheck="false"></span>'
+      + (index > 0 ? '<button class="q-x">&times;</button>' : '') + '</div>'
+      + '<div class="answer-wrap"><textarea class="tarea" placeholder="Your test answer"></textarea>'
+      + '<button class="autogen">&#10022; Write it for me</button></div>';
+    d.querySelector('.q-text').textContent = qa.question;
+    d.querySelector('.tarea').value = qa.answer;
+    d.querySelector('.q-text').addEventListener('input', e => { qa.question = e.target.textContent; });
+    d.querySelector('.tarea').addEventListener('input', e => { qa.answer = e.target.value; });
+    const x = d.querySelector('.q-x');
+    if(x) x.addEventListener('click', () => { state.questions.splice(index, 1); renderQuestions(); });
+    d.querySelector('.autogen').addEventListener('click', async e => {
+      const btn = e.currentTarget;
+      const question = qa.question.trim();
+      if(!question){ alert('write the question first'); return; }
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Writing';
+      try{
+        const out = await apiJson('/api/bench/autogen_answer', {question});
+        qa.answer = out.answer;
+        d.querySelector('.tarea').value = out.answer;
+      }catch(err){ alert(err.message); }
+      btn.disabled = false; btn.innerHTML = '&#10022; Write it for me';
+    });
+    wrap.appendChild(d);
+  });
+}
+el('addq').addEventListener('click', () => {
+  state.questions.push({question: 'New question', answer: ''});
+  renderQuestions();
+});
 
-      async function remix(id) {
-        clearAudio();
-        st("remixing " + id);
-        try {
-          const form = new FormData();
-          form.append("mix_py", $("mixPy").value);
-          appendMixSettings(form);
-          const musicFile = $("music").files[0];
-          if (musicFile) form.append("music", musicFile);
-          const experiment = await api("/api/bench/remix/" + id, {
-            method: "POST",
-            body: form,
-          });
-          $("out").src = experiment.mix_url;
-          $("out").hidden = false;
-          st(
-            "done, experiment " +
-              experiment.id +
-              ", " +
-              experiment.mix_source +
-              (experiment.music_filename
-                ? ", " + experiment.music_filename
-                : ""),
-          );
-          loadHistory();
-        } catch (error) {
-          st(error.message);
-        }
-      }
+// ---------------- music ----------------
+el('musicChoose').addEventListener('click', () => el('musicInput').click());
+el('musicInput').addEventListener('change', () => {
+  const f = el('musicInput').files[0];
+  if(!f) return;
+  musicUpload = f;
+  state.musicRef = ''; state.musicName = f.name;
+  renderMusic();
+});
+el('musicRemove').addEventListener('click', () => {
+  musicUpload = null; state.musicRef = ''; state.musicName = '';
+  el('musicInput').value = '';
+  renderMusic();
+});
+function renderMusic(){
+  el('musicName').textContent = state.musicName || 'no music, voice goes over silence or the mix default';
+}
 
-      // saved file library
+// ---------------- context ----------------
+async function loadContext(){
+  const out = await apiGet('/api/bench/context');
+  contextDocs = out.context;
+  renderContext();
+}
+function renderContext(){
+  for(const group of ['substance', 'form', 'technique']){
+    const wrap = el('ctx-' + group);
+    wrap.innerHTML = '';
+    contextDocs.filter(d => d.kind === group).forEach(doc => {
+      const label = document.createElement('label'); label.className = 'doc-row';
+      const letter = doc.size_class ? doc.size_class[0].toUpperCase() : 'S';
+      label.innerHTML = '<input type="checkbox">'
+        + '<span class="fname">' + esc(doc.name) + '</span>'
+        + '<span class="size"><b>' + letter + '</b>' + esc(doc.size_class) + '</span>'
+        + '<span class="kb">' + Math.round(doc.chars / 1000) + 'k</span>'
+        + '<button class="q-x" title="Delete doc">&times;</button>';
+      const box = label.querySelector('input');
+      box.checked = state.contextSelected.includes(doc.id);
+      box.addEventListener('change', () => {
+        if(box.checked) state.contextSelected.push(doc.id);
+        else state.contextSelected = state.contextSelected.filter(i => i !== doc.id);
+        updateBudget();
+      });
+      label.querySelector('.q-x').addEventListener('click', async e => {
+        e.preventDefault();
+        if(!confirm('delete ' + doc.name + '?')) return;
+        try{ await apiDelete('/api/bench/context/' + doc.id); }catch(err){ alert(err.message); return; }
+        state.contextSelected = state.contextSelected.filter(i => i !== doc.id);
+        loadContext().then(updateBudget);
+      });
+      wrap.appendChild(label);
+    });
+  }
+  updateBudget();
+}
+let ctxGroup = 'substance';
+document.querySelectorAll('.g-add').forEach(btn => btn.addEventListener('click', () => {
+  ctxGroup = btn.dataset.group;
+  el('ctxInput').click();
+}));
+el('ctxInput').addEventListener('change', async () => {
+  const f = el('ctxInput').files[0];
+  if(!f) return;
+  const fd = new FormData();
+  fd.append('kind', ctxGroup);
+  fd.append('file', f);
+  try{
+    const doc = await apiForm('/api/bench/context', fd);
+    state.contextSelected.push(doc.id);
+    await loadContext();
+  }catch(err){ alert(err.message); }
+  el('ctxInput').value = '';
+});
+function updateBudget(){
+  let total = 0;
+  for(const doc of contextDocs){
+    if(state.contextSelected.includes(doc.id)) total += doc.chars;
+  }
+  const used = el('ctxUsed');
+  used.textContent = Math.round(total / 1000) + 'k';
+  const over = total > 80000;
+  used.style.color = over ? 'var(--red)' : 'var(--ink)';
+  const fill = el('ctxFill');
+  fill.style.width = Math.min(100, total / 800) + '%';
+  fill.style.background = over ? 'var(--red)' : 'var(--ink)';
+}
 
-      async function loadFiles() {
-        try {
-          const data = await api("/api/bench/files");
-          const promptSelect = $("promptSaved");
-          const mixSelect = $("mixSaved");
-          promptSelect.innerHTML =
-            '<option value="">saved prompt files</option>';
-          mixSelect.innerHTML = '<option value="">saved mix files</option>';
-          data.files.forEach((file) => {
-            const when = new Date(file.created_at).toLocaleString();
-            const option = document.createElement("option");
-            option.value = file.id;
-            option.textContent = file.name + " · " + when;
-            (file.kind === "prompt" ? promptSelect : mixSelect).appendChild(
-              option,
-            );
-          });
-        } catch (error) {}
-      }
+// ---------------- voices ----------------
+async function loadVoices(){
+  const out = await apiGet('/api/bench/voices');
+  voices = out.voices;
+  renderVoices();
+}
+function renderVoices(){
+  const sel = el('voiceSel');
+  const current = el('voiceId').value.trim();
+  sel.innerHTML = '';
+  for(const v of voices){
+    const opt = document.createElement('option');
+    opt.value = v.voice_id; opt.textContent = v.name;
+    sel.appendChild(opt);
+  }
+  const custom = document.createElement('option');
+  custom.value = ''; custom.textContent = 'New voice\u2026';
+  sel.appendChild(custom);
+  const match = voices.find(v => v.voice_id === current);
+  sel.value = match ? current : '';
+  if(!current && voices.length){ sel.value = voices[0].voice_id; el('voiceId').value = voices[0].voice_id; }
+}
+el('voiceSel').addEventListener('change', () => {
+  if(el('voiceSel').value) el('voiceId').value = el('voiceSel').value;
+  else el('voiceId').value = '';
+});
+el('voiceId').addEventListener('input', () => {
+  const match = voices.find(v => v.voice_id === el('voiceId').value.trim());
+  el('voiceSel').value = match ? match.voice_id : '';
+});
+el('voiceSave').addEventListener('click', async () => {
+  const name = el('voiceName').value.trim();
+  const voiceId = el('voiceId').value.trim();
+  if(!name || !voiceId){ alert('need a name and a voice id'); return; }
+  try{
+    await apiJson('/api/bench/voices', {name, voice_id: voiceId});
+    el('voiceName').value = '';
+    await loadVoices();
+    el('voiceSel').value = voiceId;
+  }catch(err){ alert(err.message); }
+});
+el('voiceDelete').addEventListener('click', async () => {
+  const voiceId = el('voiceId').value.trim();
+  const match = voices.find(v => v.voice_id === voiceId);
+  if(!match){ alert('this voice is not saved'); return; }
+  if(!confirm('delete voice ' + match.name + '?')) return;
+  try{ await apiDelete('/api/bench/voices/' + match.id); await loadVoices(); }
+  catch(err){ alert(err.message); }
+});
 
-      function wireFilebar(
-        kind,
-        selectId,
-        textareaId,
-        saveId,
-        deleteId,
-        namebarId,
-        nameId,
-        nameOkId,
-        nameCancelId,
-      ) {
-        $(selectId).onchange = async () => {
-          const id = $(selectId).value;
-          resetDelete(deleteId);
-          if (!id) return;
-          try {
-            const file = await api("/api/bench/files/" + id);
-            $(textareaId).value = file.content;
-            updateMixNote();
-            st("loaded " + file.name);
-          } catch (error) {
-            st(error.message);
-          }
-        };
-        $(saveId).onclick = () => {
-          if (!$(textareaId).value.trim()) {
-            st("nothing to save, the box is empty");
-            return;
-          }
-          $(namebarId).hidden = false;
-          $(nameId).focus();
-        };
-        $(nameCancelId).onclick = () => {
-          $(namebarId).hidden = true;
-          $(nameId).value = "";
-        };
-        $(nameOkId).onclick = async () => {
-          const name = $(nameId).value.trim();
-          if (!name) {
-            st("type a name first");
-            return;
-          }
-          try {
-            await api("/api/bench/files", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                kind: kind,
-                name: name,
-                content: $(textareaId).value,
-              }),
-            });
-            st("saved " + name);
-            $(namebarId).hidden = true;
-            $(nameId).value = "";
-            loadFiles();
-          } catch (error) {
-            st(error.message);
-          }
-        };
-        $(nameId).addEventListener("keydown", (event) => {
-          if (event.key === "Enter") $(nameOkId).click();
-        });
-        $(deleteId).onclick = async () => {
-          const id = $(selectId).value;
-          if (!id) {
-            st("pick a saved file to delete");
-            return;
-          }
-          if ($(deleteId).textContent !== "Confirm delete") {
-            $(deleteId).textContent = "Confirm delete";
-            setTimeout(() => resetDelete(deleteId), 4000);
-            return;
-          }
-          try {
-            await api("/api/bench/files/" + id, { method: "DELETE" });
-            st("deleted");
-            resetDelete(deleteId);
-            loadFiles();
-          } catch (error) {
-            st(error.message);
-          }
-        };
-      }
+// ---------------- pause hint mirrors the mix panel ----------------
+function updatePauseHint(){
+  const p = pauseToMs(el('pauseS').value, 3000) / 1000;
+  const lp = pauseToMs(el('longPauseS').value, 6000) / 1000;
+  el('pauseHint').innerHTML = '[pause] ' + p + 's &middot; [long pause] ' + lp + 's &middot; break tags exact, stacking adds up';
+}
+el('pauseS').addEventListener('input', updatePauseHint);
+el('longPauseS').addEventListener('input', updatePauseHint);
+el('addElement').addEventListener('click', () => {});
 
-      function resetDelete(deleteId) {
-        $(deleteId).textContent = "Delete";
-      }
+// ---------------- compose state save and load ----------------
+function collectCompose(){
+  return {
+    questions: state.questions,
+    model: el('modelSel').value,
+    prompt_py: el('promptPy').value,
+    mix_py: el('mixPy').value,
+    context_selected: state.contextSelected,
+    voice_id: el('voiceId').value.trim(),
+    engine: el('engineSel').value,
+    stability: el('stab').value,
+    style: el('styleV').value,
+    boost: el('boostSel').value,
+    balance: el('balance').value,
+    fades: el('fades').value,
+    pause_s: el('pauseS').value,
+    long_pause_s: el('longPauseS').value,
+    music_ref: state.musicRef,
+    music_name: state.musicName
+  };
+}
+function applyCompose(saved){
+  if(!saved || !Object.keys(saved).length) return;
+  if(Array.isArray(saved.questions) && saved.questions.length) state.questions = saved.questions;
+  if(saved.model) el('modelSel').value = saved.model;
+  el('promptPy').value = saved.prompt_py || '';
+  el('mixPy').value = saved.mix_py || '';
+  state.contextSelected = Array.isArray(saved.context_selected) ? saved.context_selected : [];
+  if(saved.voice_id) el('voiceId').value = saved.voice_id;
+  if(saved.engine) el('engineSel').value = saved.engine;
+  if(saved.stability != null && saved.stability !== '') el('stab').value = saved.stability;
+  if(saved.style != null && saved.style !== '') el('styleV').value = saved.style;
+  if(saved.boost) el('boostSel').value = saved.boost;
+  el('balance').value = saved.balance || '';
+  el('fades').value = saved.fades || '';
+  if(saved.pause_s) el('pauseS').value = saved.pause_s;
+  if(saved.long_pause_s) el('longPauseS').value = saved.long_pause_s;
+  state.musicRef = saved.music_ref || '';
+  state.musicName = saved.music_name || '';
+}
+const saveBtn = el('saveBtn');
+saveBtn.addEventListener('click', async () => {
+  try{
+    await apiJson('/api/bench/compose', {state: collectCompose()});
+    saveBtn.textContent = 'Saved \u2713'; saveBtn.disabled = true;
+    setTimeout(() => { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }, 1200);
+  }catch(err){ alert(err.message); }
+});
 
-      function resetDeleteText(elementId, text) {
-        $(elementId).textContent = text;
-      }
+// ---------------- speech doc, the mockup machinery wired to real data ----------------
+const page = el('page'), pop = el('pop'), docBody = el('docBody');
+const chgcount = el('chgcount');
+function refreshCount(){
+  const ins = page.querySelectorAll('.ins').length, marks = page.querySelectorAll('mark').length;
+  chgcount.textContent = ins + ' change' + (ins === 1 ? '' : 's') + ' \u00B7 ' + marks + ' mark' + (marks === 1 ? '' : 's');
+}
 
-      wireFilebar(
-        "prompt",
-        "promptSaved",
-        "promptPy",
-        "promptSave",
-        "promptDelete",
-        "promptNamebar",
-        "promptName",
-        "promptNameOk",
-        "promptNameCancel",
-      );
-      wireFilebar(
-        "mix",
-        "mixSaved",
-        "mixPy",
-        "mixSave",
-        "mixDelete",
-        "mixNamebar",
-        "mixName",
-        "mixNameOk",
-        "mixNameCancel",
-      );
+// direct typing appears in red
+page.addEventListener('beforeinput', e => {
+  if(e.inputType === 'insertText' && e.data){
+    e.preventDefault();
+    const sel = getSelection(); if(!sel.rangeCount) return;
+    const r = sel.getRangeAt(0); r.deleteContents();
+    let host = sel.anchorNode; host = host && (host.nodeType === 3 ? host.parentElement : host);
+    if(host && host.closest('.ins')){
+      const t = document.createTextNode(e.data); r.insertNode(t); sel.collapse(t, t.length);
+    }else{
+      const sp = document.createElement('span'); sp.className = 'ins'; sp.textContent = e.data;
+      r.insertNode(sp); sel.collapse(sp.firstChild, sp.firstChild.length);
+    }
+    refreshCount();
+    scheduleDocSave();
+  }
+});
+page.addEventListener('input', () => { refreshCount(); scheduleDocSave(); });
 
-      loadHistory();
-      loadFiles();
-      loadVoices();
-      loadContext();
-      updateMixNote();
-      updateTtsHint();
-    </script>
-  </body>
+// selection popover
+let savedRange = null, sentiment = null;
+const tU = el('thumbUp'), tD = el('thumbDown');
+function resetPop(){ sentiment = null; tU.classList.remove('on-good'); tD.classList.remove('on-bad'); el('popComment').value = ''; }
+document.addEventListener('mouseup', e => {
+  if(pop.contains(e.target)) return;
+  setTimeout(() => {
+    const sel = getSelection();
+    if(sel.isCollapsed || !page.contains(sel.anchorNode)){ pop.classList.remove('show'); return; }
+    savedRange = sel.getRangeAt(0).cloneRange();
+    const rect = savedRange.getBoundingClientRect();
+    pop.classList.add('show'); resetPop();
+    pop.style.left = Math.max(8, rect.left) + 'px';
+    pop.style.top = (rect.top - 46) + 'px';
+  }, 0);
+});
+tU.addEventListener('click', () => { sentiment = 'good'; tU.classList.add('on-good'); tD.classList.remove('on-bad'); });
+tD.addEventListener('click', () => { sentiment = 'bad'; tD.classList.add('on-bad'); tU.classList.remove('on-good'); });
+el('popSave').addEventListener('click', () => {
+  if(!savedRange) return;
+  const m = document.createElement('mark'); m.className = sentiment || 'good';
+  try{ savedRange.surroundContents(m); }catch(_){ m.appendChild(savedRange.extractContents()); savedRange.insertNode(m); }
+  const c = el('popComment').value.trim();
+  const note = document.createElement('span'); note.className = 'margin-note';
+  note.innerHTML = '<b>' + (sentiment === 'bad' ? 'Bad' : 'Good') + '</b>' + (c ? ' \u2014 ' + esc(c) : '');
+  m.after(note);
+  pop.classList.remove('show'); getSelection().removeAllRanges(); refreshCount();
+  scheduleDocSave();
+});
+
+// reading the doc back out
+function renderSpeech(text){
+  page.innerHTML = '';
+  for(const para of String(text || '').split(/\n\s*\n/)){
+    if(!para.trim()) continue;
+    const p = document.createElement('p'); p.textContent = para.trim();
+    page.appendChild(p);
+  }
+  refreshCount();
+}
+function pageText(){
+  const clone = page.cloneNode(true);
+  clone.querySelectorAll('.margin-note').forEach(n => n.remove());
+  const parts = [];
+  clone.querySelectorAll('p').forEach(p => { if(p.textContent.trim()) parts.push(p.textContent.trim()); });
+  if(!parts.length && clone.textContent.trim()) parts.push(clone.textContent.trim());
+  return parts.join('\n\n');
+}
+function pageMarks(){
+  const out = [];
+  page.querySelectorAll('mark').forEach(m => {
+    let comment = '';
+    const next = m.nextElementSibling;
+    if(next && next.classList.contains('margin-note')){
+      comment = next.textContent.replace(/^(Good|Bad)\s*(\u2014|-)?\s*/, '').trim();
+    }
+    out.push({sentiment: m.classList.contains('bad') ? 'bad' : 'good', text: m.textContent.trim(), comment});
+  });
+  return out;
+}
+function pageEdits(){
+  const out = [];
+  page.querySelectorAll('.ins').forEach(s => { if(s.textContent.trim()) out.push(s.textContent.trim()); });
+  return out;
+}
+function updateMeta(stage){
+  if(!state.experimentId){ el('docMeta').textContent = 'no run yet'; return; }
+  el('docMeta').textContent = '#' + state.experimentId + ' \u00B7 day ' + state.dayNumber + ' \u00B7 ' + stage;
+}
+
+// doc autosave, marks and edits survive a reload
+let docSaveTimer = null;
+function scheduleDocSave(){
+  if(!state.experimentId) return;
+  clearTimeout(docSaveTimer);
+  docSaveTimer = setTimeout(async () => {
+    try{
+      await apiJson('/api/bench/experiments/' + state.experimentId + '/doc',
+                    {doc_html: page.innerHTML, speech_text: pageText()});
+    }catch(_){ }
+  }, 1500);
+}
+
+// ---------------- generate text ----------------
+const genText = el('genText');
+genText.addEventListener('click', async () => {
+  if(genText.disabled) return;
+  if(!el('promptPy').value.trim()){ alert('paste a prompt file first'); return; }
+  genText.disabled = true; genText.innerHTML = '<span class="spinner"></span>Generating\u2026';
+  docBody.classList.add('generating');
+  try{
+    const out = await apiJson('/api/bench/write', {
+      questions: state.questions,
+      prompt_py: el('promptPy').value,
+      model: el('modelSel').value,
+      context_ids: state.contextSelected.join(',')
+    });
+    state.experimentId = out.experiment_id;
+    state.dayNumber = 1;
+    state.originalSpeech = out.speech;
+    renderSpeech(out.speech);
+    updateMeta('draft');
+    el('mp3row').classList.remove('show');
+    await loadExperiments();
+  }catch(err){ alert(err.message); }
+  genText.disabled = false; genText.textContent = 'Generate text';
+  docBody.classList.remove('generating');
+});
+
+// ---------------- update prompt ----------------
+const updateBtn = el('updatePrompt');
+updateBtn.addEventListener('click', async () => {
+  if(updateBtn.disabled) return;
+  const marks = pageMarks(), edits = pageEdits();
+  const finalText = pageText();
+  if(!marks.length && !edits.length && finalText === state.originalSpeech.trim()){
+    alert('mark or edit the speech first'); return;
+  }
+  updateBtn.disabled = true; updateBtn.innerHTML = '<span class="spinner"></span>Updating\u2026';
+  try{
+    const out = await apiJson('/api/bench/update_prompt', {
+      experiment_id: state.experimentId,
+      model: el('modelSel').value,
+      prompt_py: el('promptPy').value,
+      original_speech: state.originalSpeech,
+      final_speech: finalText,
+      marks, edits,
+      doc_html: page.innerHTML
+    });
+    el('promptPy').value = out.prompt_py;
+    updateBtn.textContent = 'Prompt updated \u2713';
+    setTimeout(() => { updateBtn.textContent = 'Update prompt'; updateBtn.disabled = false; }, 1500);
+    return;
+  }catch(err){ alert(err.message); }
+  updateBtn.textContent = 'Update prompt'; updateBtn.disabled = false;
+});
+
+// ---------------- players ----------------
+let currentAudio = null, currentPlayerEl = null;
+function fmtTime(seconds){
+  if(!isFinite(seconds)) return '0:00';
+  const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+function attachPlayer(playerEl, url){
+  const btn = playerEl.querySelector('.play');
+  const track = playerEl.querySelector('.track');
+  const t = playerEl.querySelector('.t');
+  let audio = null;
+  function stopOthers(){
+    if(currentAudio && currentPlayerEl !== playerEl){
+      currentAudio.pause();
+      currentPlayerEl.querySelector('.play').innerHTML = '&#9654;';
+    }
+  }
+  btn.addEventListener('click', () => {
+    if(!url){ return; }
+    if(!audio){
+      audio = new Audio(url);
+      audio.addEventListener('loadedmetadata', () => { t.textContent = '0:00 / ' + fmtTime(audio.duration); });
+      audio.addEventListener('timeupdate', () => {
+        t.textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(audio.duration);
+        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+        track.style.background = 'linear-gradient(to right, var(--ink) ' + pct + '%, var(--line) ' + pct + '%)';
+      });
+      audio.addEventListener('ended', () => { btn.innerHTML = '&#9654;'; });
+    }
+    stopOthers();
+    if(audio.paused){ audio.play(); btn.textContent = '\u23F8'; currentAudio = audio; currentPlayerEl = playerEl; }
+    else{ audio.pause(); btn.innerHTML = '&#9654;'; }
+  });
+}
+
+// ---------------- generate mp3 ----------------
+const genmp3 = el('genmp3');
+genmp3.addEventListener('click', async () => {
+  if(genmp3.disabled) return;
+  const speech = pageText();
+  if(!speech){ alert('no speech to make, generate or paste text first'); return; }
+  if(!el('voiceId').value.trim()){ alert('set a voice id first'); return; }
+  genmp3.disabled = true; genmp3.innerHTML = '<span class="spinner"></span>Generating\u2026';
+  try{
+    const fd = new FormData();
+    fd.append('questions', JSON.stringify(state.questions));
+    fd.append('speech', speech);
+    fd.append('prompt_py', el('promptPy').value);
+    fd.append('mix_py', el('mixPy').value);
+    fd.append('model', el('modelSel').value);
+    fd.append('voice_id', el('voiceId').value.trim());
+    fd.append('stability', firstNumber(el('stab').value) == null ? '0.5' : firstNumber(el('stab').value));
+    fd.append('style', firstNumber(el('styleV').value) == null ? '0' : firstNumber(el('styleV').value));
+    fd.append('boost', el('boostSel').value === 'on' ? 'true' : 'false');
+    fd.append('tts_provider', el('engineSel').value);
+    fd.append('experiment_id', state.experimentId || 0);
+    const balance = firstNumber(el('balance').value);
+    if(balance != null) fd.append('balance_db', balance);
+    const [fadeIn, fadeOut] = twoNumbers(el('fades').value);
+    if(fadeIn != null) fd.append('fade_in_s', fadeIn);
+    if(fadeOut != null) fd.append('fade_out_s', fadeOut);
+    fd.append('pause_ms', pauseToMs(el('pauseS').value, 3000));
+    fd.append('long_pause_ms', pauseToMs(el('longPauseS').value, 6000));
+    if(musicUpload) fd.append('music', musicUpload);
+    else if(state.musicRef) fd.append('music_ref', state.musicRef);
+    const exp = await apiForm('/api/bench/make', fd);
+    state.experimentId = exp.id;
+    state.dayNumber = exp.day_number || 1;
+    if(!state.originalSpeech) state.originalSpeech = exp.speech_text;
+    state.musicRef = exp.music_file || state.musicRef;
+    state.musicName = exp.music_filename || state.musicName;
+    musicUpload = null; el('musicInput').value = '';
+    renderMusic();
+    updateMeta('mp3 ready');
+    const row = el('mp3row');
+    row.classList.add('show');
+    const oldPlayer = el('docPlayer');
+    const fresh = oldPlayer.cloneNode(true);
+    oldPlayer.replaceWith(fresh);
+    fresh.id = 'docPlayer';
+    attachPlayer(fresh, exp.mix_url || exp.voice_url);
+    await loadExperiments();
+  }catch(err){ alert(err.message); }
+  genmp3.disabled = false; genmp3.textContent = 'Generate mp3';
+});
+
+// publish is on screen but not wired yet
+const pubBtn = el('publish');
+pubBtn.addEventListener('click', () => {
+  const old = pubBtn.textContent;
+  pubBtn.textContent = 'Not wired yet';
+  setTimeout(() => { pubBtn.textContent = old; }, 1400);
+});
+
+// ---------------- run cards ----------------
+async function loadExperiments(){
+  const out = await apiGet('/api/bench/experiments');
+  experiments = out.experiments;
+  renderCards();
+}
+function cardDate(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function shortModel(model){
+  for(const name of ['opus', 'fable', 'sonnet', 'haiku']) if((model || '').includes(name)) return name;
+  return model || '';
+}
+function renderCards(){
+  const wrap = el('runcards');
+  wrap.innerHTML = '';
+  const shown = experiments.filter(e => filterTag === 'all' || e.tag === filterTag);
+  el('runsEmpty').hidden = shown.length > 0;
+  for(const exp of shown){
+    const card = document.createElement('div');
+    card.className = 'hcard' + (exp.tag === 'Best so far' ? ' best' : exp.tag === 'Good' ? ' good' : exp.tag === 'Reject' ? ' rejected' : '');
+    const title = exp.title || exp.topic || 'untitled';
+    let html = '<div class="h-title">' + esc(title) + '</div>'
+      + '<div class="id-row">#' + exp.id + ' \u00B7 day ' + (exp.day_number || 1) + ' \u00B7 ' + cardDate(exp.created_at) + '</div>';
+    const audioUrl = exp.mix_url || exp.voice_url;
+    if(audioUrl) html += '<div class="player"><button class="play">&#9654;</button><div class="track"></div><span class="t">0:00</span></div>';
+    html += '<div class="tagrow">'
+      + '<button class="tag' + (exp.tag === 'Reject' ? ' on-rej' : '') + '" data-tag="Reject">Reject</button>'
+      + '<button class="tag' + (exp.tag === 'Good' ? ' on-good' : '') + '" data-tag="Good">Good</button>'
+      + '<button class="tag' + (exp.tag === 'Best so far' ? ' on-best' : '') + '" data-tag="Best so far">Best so far</button>'
+      + '</div>';
+    if(exp.comment){
+      html += '<div class="comment-saved">' + esc(exp.comment) + '<a class="edit" href="#">edit</a></div>';
+    }else{
+      html += '<div class="comment-input"><input placeholder="Comment"><button class="btn small">Save</button></div>';
+    }
+    html += '<div class="hactions"><button data-act="use">Use</button><button data-act="zip">Download zip</button><button data-act="del">Delete</button></div>';
+
+    const logLines = [];
+    if(exp.validation) logLines.push('<span class="warn">validate(): ' + esc(exp.validation.split('\n').join(' \u00B7 ')) + '</span>');
+    const settingsBits = [];
+    if(exp.voice_id) settingsBits.push('voice ' + esc(exp.voice_id.slice(0, 6)) + '\u2026');
+    settingsBits.push(exp.tts_provider === 'eleven_v2' ? 'eleven v2' : 'eleven v3');
+    if(exp.stability != null) settingsBits.push('stability ' + exp.stability);
+    if(exp.model) settingsBits.push(shortModel(exp.model));
+    if(exp.word_count) settingsBits.push(exp.word_count + ' words');
+    if(exp.music_filename) settingsBits.push(esc(exp.music_filename));
+    logLines.push(settingsBits.join(', '));
+    if(exp.run_log) logLines.push('<br>' + esc(exp.run_log).split('\n').join('<br>'));
+    html += '<details class="runlog"><summary>Run log</summary><div class="body">' + logLines.join('<br>') + '</div></details>';
+
+    card.innerHTML = html;
+    if(audioUrl) attachPlayer(card.querySelector('.player'), audioUrl);
+
+    card.querySelectorAll('.tag').forEach(btn => btn.addEventListener('click', async () => {
+      const tag = btn.dataset.tag === exp.tag ? '' : btn.dataset.tag;
+      try{ await apiJson('/api/bench/experiments/' + exp.id + '/tag', {tag}); await loadExperiments(); }
+      catch(err){ alert(err.message); }
+    }));
+
+    const commentInput = card.querySelector('.comment-input input');
+    if(commentInput){
+      card.querySelector('.comment-input .btn').addEventListener('click', async () => {
+        try{ await apiJson('/api/bench/experiments/' + exp.id + '/comment', {comment: commentInput.value}); await loadExperiments(); }
+        catch(err){ alert(err.message); }
+      });
+      commentInput.addEventListener('keydown', e => { if(e.key === 'Enter') card.querySelector('.comment-input .btn').click(); });
+    }
+    const editLink = card.querySelector('.comment-saved .edit');
+    if(editLink) editLink.addEventListener('click', e => {
+      e.preventDefault();
+      const saved = card.querySelector('.comment-saved');
+      const replacement = document.createElement('div');
+      replacement.className = 'comment-input';
+      replacement.innerHTML = '<input placeholder="Comment"><button class="btn small">Save</button>';
+      replacement.querySelector('input').value = exp.comment;
+      replacement.querySelector('.btn').addEventListener('click', async () => {
+        try{ await apiJson('/api/bench/experiments/' + exp.id + '/comment', {comment: replacement.querySelector('input').value}); await loadExperiments(); }
+        catch(err){ alert(err.message); }
+      });
+      saved.replaceWith(replacement);
+      replacement.querySelector('input').focus();
+    });
+
+    card.querySelector('[data-act=use]').addEventListener('click', () => useExperiment(exp));
+    card.querySelector('[data-act=zip]').addEventListener('click', () => { window.location = '/api/bench/experiments/' + exp.id + '/zip'; });
+    card.querySelector('[data-act=del]').addEventListener('click', async () => {
+      if(!confirm('delete run #' + exp.id + '?')) return;
+      try{
+        await apiDelete('/api/bench/experiments/' + exp.id);
+        if(state.experimentId === exp.id){ state.experimentId = 0; updateMeta(''); }
+        await loadExperiments();
+      }catch(err){ alert(err.message); }
+    });
+
+    wrap.appendChild(card);
+  }
+}
+
+// use restores the whole run into the bench
+function useExperiment(exp){
+  if(Array.isArray(exp.questions) && exp.questions.length) state.questions = exp.questions;
+  else if(exp.topic) state.questions = [{question: 'What do you want to meditate about', answer: exp.topic}];
+  renderQuestions();
+  if(exp.model) el('modelSel').value = exp.model;
+  el('promptPy').value = exp.prompt_py || '';
+  el('mixPy').value = exp.mix_py || '';
+  state.contextSelected = String(exp.context_ids || '').split(',').filter(x => x).map(Number);
+  renderContext();
+  if(exp.voice_id){ el('voiceId').value = exp.voice_id; renderVoices(); }
+  el('engineSel').value = exp.tts_provider === 'eleven_v2' ? 'eleven_v2' : 'elevenlabs';
+  if(exp.stability != null) el('stab').value = exp.stability;
+  if(exp.style != null) el('styleV').value = exp.style;
+  el('boostSel').value = exp.boost ? 'on' : 'off';
+  el('balance').value = exp.balance_db != null ? exp.balance_db + ' dB' : '';
+  el('fades').value = (exp.fade_in_s != null || exp.fade_out_s != null)
+    ? (exp.fade_in_s != null ? exp.fade_in_s : 0) + 's / ' + (exp.fade_out_s != null ? exp.fade_out_s : 0) + 's' : '';
+  el('pauseS').value = ((exp.pause_ms != null ? exp.pause_ms : 3000) / 1000) + 's';
+  el('longPauseS').value = ((exp.long_pause_ms != null ? exp.long_pause_ms : 6000) / 1000) + 's';
+  updatePauseHint();
+  musicUpload = null; el('musicInput').value = '';
+  state.musicRef = exp.music_file || '';
+  state.musicName = exp.music_filename || '';
+  renderMusic();
+  state.experimentId = exp.id;
+  state.dayNumber = exp.day_number || 1;
+  state.originalSpeech = exp.speech_text || '';
+  if(exp.doc_html) { page.innerHTML = exp.doc_html; refreshCount(); }
+  else renderSpeech(exp.speech_text || '');
+  const audioUrl = exp.mix_url || exp.voice_url;
+  const row = el('mp3row');
+  if(audioUrl){
+    row.classList.add('show');
+    const oldPlayer = el('docPlayer');
+    const fresh = oldPlayer.cloneNode(true);
+    oldPlayer.replaceWith(fresh);
+    fresh.id = 'docPlayer';
+    attachPlayer(fresh, audioUrl);
+  }else row.classList.remove('show');
+  updateMeta(audioUrl ? 'mp3 ready' : 'draft');
+  document.querySelector('.compose').scrollTop = 0;
+}
+
+// ---------------- chrome from the mockup ----------------
+el('histClose').addEventListener('click', () => document.body.classList.add('hist-closed'));
+el('histReopen').addEventListener('click', () => document.body.classList.remove('hist-closed'));
+
+document.querySelectorAll('.ltab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.ltab').forEach(x => x.classList.remove('on')); t.classList.add('on');
+  el('tab-history').hidden = t.dataset.tab !== 'history';
+  el('tab-published').hidden = t.dataset.tab !== 'published';
+}));
+
+document.querySelectorAll('.hfilter').forEach(f => f.addEventListener('click', () => {
+  document.querySelectorAll('.hfilter').forEach(x => x.classList.remove('on')); f.classList.add('on');
+  filterTag = f.dataset.filter;
+  renderCards();
+}));
+
+document.querySelectorAll('details.sec').forEach(d => d.addEventListener('toggle', () => {
+  if(d.open) document.querySelectorAll('details.sec').forEach(o => { if(o !== d) o.open = false; });
+}));
+
+// ---------------- boot ----------------
+async function boot(){
+  renderQuestions();
+  renderMusic();
+  refreshCount();
+  try{
+    const saved = await apiGet('/api/bench/compose');
+    applyCompose(saved.state);
+  }catch(_){ }
+  renderQuestions();
+  renderMusic();
+  updatePauseHint();
+  try{ await loadVoices(); }catch(err){ console.error(err); }
+  try{ await loadContext(); }catch(err){ console.error(err); }
+  try{ await loadExperiments(); }catch(err){ console.error(err); }
+}
+boot();
+</script>
+</body>
 </html>
