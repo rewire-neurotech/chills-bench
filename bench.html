@@ -450,6 +450,7 @@ let musicUpload = null;
 let contextDocs = [];
 let voices = [];
 let experiments = [];
+let seqById = {};
 let filterTag = 'all';
 
 const el = id => document.getElementById(id);
@@ -794,9 +795,12 @@ function pageEdits(){
   page.querySelectorAll('.ins').forEach(s => { if(s.textContent.trim()) out.push(s.textContent.trim()); });
   return out;
 }
+let lastStage = '';
 function updateMeta(stage){
+  lastStage = stage || lastStage;
   if(!state.experimentId){ el('docMeta').textContent = 'no run yet'; return; }
-  el('docMeta').textContent = '#' + state.experimentId + ' \u00B7 day ' + state.dayNumber + ' \u00B7 ' + stage;
+  const shown = seqById[state.experimentId] || state.experimentId;
+  el('docMeta').textContent = '#' + shown + ' \u00B7 day ' + state.dayNumber + ' \u00B7 ' + lastStage;
 }
 
 // doc autosave, marks and edits survive a reload
@@ -830,8 +834,8 @@ genText.addEventListener('click', async () => {
     state.dayNumber = 1;
     state.originalSpeech = out.speech;
     renderSpeech(out.speech);
-    updateMeta('draft');
     el('mp3row').classList.remove('show');
+    updateMeta('draft');
     await loadExperiments();
   }catch(err){ alert(err.message); }
   genText.disabled = false; genText.textContent = 'Generate text';
@@ -878,6 +882,22 @@ function attachPlayer(playerEl, url){
   const track = playerEl.querySelector('.track');
   const t = playerEl.querySelector('.t');
   let audio = null;
+  track.style.cursor = 'pointer';
+  function paint(){
+    t.textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(audio.duration);
+    const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+    track.style.background = 'linear-gradient(to right, var(--ink) ' + pct + '%, var(--line) ' + pct + '%)';
+  }
+  function ensureAudio(){
+    if(!audio){
+      audio = new Audio(url);
+      audio.addEventListener('loadedmetadata', () => { t.textContent = '0:00 / ' + fmtTime(audio.duration); });
+      audio.addEventListener('timeupdate', paint);
+      audio.addEventListener('seeked', paint);
+      audio.addEventListener('ended', () => { btn.innerHTML = '&#9654;'; });
+    }
+    return audio;
+  }
   function stopOthers(){
     if(currentAudio && currentPlayerEl !== playerEl){
       currentAudio.pause();
@@ -886,19 +906,20 @@ function attachPlayer(playerEl, url){
   }
   btn.addEventListener('click', () => {
     if(!url){ return; }
-    if(!audio){
-      audio = new Audio(url);
-      audio.addEventListener('loadedmetadata', () => { t.textContent = '0:00 / ' + fmtTime(audio.duration); });
-      audio.addEventListener('timeupdate', () => {
-        t.textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(audio.duration);
-        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-        track.style.background = 'linear-gradient(to right, var(--ink) ' + pct + '%, var(--line) ' + pct + '%)';
-      });
-      audio.addEventListener('ended', () => { btn.innerHTML = '&#9654;'; });
-    }
+    ensureAudio();
     stopOthers();
     if(audio.paused){ audio.play(); btn.textContent = '\u23F8'; currentAudio = audio; currentPlayerEl = playerEl; }
     else{ audio.pause(); btn.innerHTML = '&#9654;'; }
+  });
+  track.addEventListener('click', e => {
+    if(!url) return;
+    const rect = track.getBoundingClientRect();
+    if(!rect.width) return;
+    const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const a = ensureAudio();
+    const seek = () => { a.currentTime = fraction * a.duration; };
+    if(isFinite(a.duration) && a.duration > 0) seek();
+    else a.addEventListener('loadedmetadata', seek, {once: true});
   });
 }
 
@@ -965,7 +986,10 @@ pubBtn.addEventListener('click', () => {
 async function loadExperiments(){
   const out = await apiGet('/api/bench/experiments');
   experiments = out.experiments;
+  seqById = {};
+  [...experiments].sort((a, b) => a.id - b.id).forEach((e, i) => { seqById[e.id] = i + 1; });
   renderCards();
+  updateMeta(lastStage);
 }
 function cardDate(iso){
   const d = new Date(iso);
@@ -987,7 +1011,7 @@ function renderCards(){
     card.className = 'hcard' + (exp.tag === 'Best so far' ? ' best' : exp.tag === 'Good' ? ' good' : exp.tag === 'Reject' ? ' rejected' : '');
     const title = exp.title || exp.topic || 'untitled';
     let html = '<div class="h-title">' + esc(title) + '</div>'
-      + '<div class="id-row">#' + exp.id + ' \u00B7 day ' + (exp.day_number || 1) + ' \u00B7 ' + cardDate(exp.created_at) + '</div>';
+      + '<div class="id-row">#' + (seqById[exp.id] || exp.id) + ' \u00B7 day ' + (exp.day_number || 1) + ' \u00B7 ' + cardDate(exp.created_at) + '</div>';
     const audioUrl = exp.mix_url || exp.voice_url;
     if(audioUrl) html += '<div class="player"><button class="play">&#9654;</button><div class="track"></div><span class="t">0:00</span></div>';
     html += '<div class="tagrow">'
@@ -1013,6 +1037,7 @@ function renderCards(){
     if(exp.music_filename) settingsBits.push(esc(exp.music_filename));
     logLines.push(settingsBits.join(', '));
     if(exp.run_log) logLines.push('<br>' + esc(exp.run_log).split('\n').join('<br>'));
+    logLines.push('server id ' + exp.id);
     html += '<details class="runlog"><summary>Run log</summary><div class="body">' + logLines.join('<br>') + '</div></details>';
 
     card.innerHTML = html;
