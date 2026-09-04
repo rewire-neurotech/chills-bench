@@ -727,9 +727,10 @@ DEFAULT_LONG_PAUSE_MS = 6000
 CHUNK_GAP_MS = 350
 JOIN_FADE_MS = 15
 PAUSE_DETECT_MS = 1200
-PAUSE_SILENCE_DBFS = -45.0
+PAUSE_SILENCE_DBFS = -50.0
 PAUSE_FRAME_MS = 5
 ZC_SEARCH_MS = 2
+CUT_MARGIN_MS = 150
 FORMAT_CANDIDATES = ("pcm_44100", "pcm_24000", "mp3_44100_128")
 OUT_RATE = 44100
 
@@ -885,15 +886,16 @@ def join_chunks(chunks, rate, gap_ms):
 
 
 def find_pauses(samples, rate, min_ms=PAUSE_DETECT_MS):
-    # silent runs longer than min_ms as [start_ms, end_ms] pairs, frame rms
-    # in numpy because pydub's detector is too slow on long takes
+    # silent runs longer than min_ms as [start_ms, end_ms] pairs. frame peak,
+    # not rms: meditation speech is delivered very softly and an rms threshold
+    # reads whole whispered phrases as silence, which let the normalizer cut
+    # them away with the pause next to them
     hop = max(1, int(rate * PAUSE_FRAME_MS / 1000))
     frames_count = len(samples) // hop
     if frames_count == 0:
         return []
-    frames = samples[: frames_count * hop].reshape(frames_count, hop).astype(np.float64)
-    db_levels = 20 * np.log10(np.sqrt((frames ** 2).mean(axis=1)) / 32768.0 + 1e-12)
-    quiet = db_levels < PAUSE_SILENCE_DBFS
+    peaks = np.abs(samples[: frames_count * hop]).reshape(frames_count, hop).max(axis=1)
+    quiet = peaks < 32768.0 * (10 ** (PAUSE_SILENCE_DBFS / 20.0))
     runs = []
     i = 0
     while i < frames_count:
@@ -930,6 +932,7 @@ def normalize_pauses(samples, rate, targets_ms, log):
                    f"for {len(targets_ms)} pause tags, audio left as rendered")
         return samples
     radius = max(1, int(rate * ZC_SEARCH_MS / 1000))
+    margin = int(rate * CUT_MARGIN_MS / 1000)
     parts = []
     cursor = 0
     for (start_ms, end_ms), target_ms in zip(runs, targets_ms):
@@ -939,11 +942,15 @@ def normalize_pauses(samples, rate, targets_ms, log):
         target = int(round(rate * target_ms / 1000))
         mid = (a + b) // 2
         if have > target:
-            excess = have - target
+            # cut only from the interior of the silent run, the edges stay,
+            # so a misread onset or tail of quiet speech can never be removed
+            excess = min(have - target, max(0, have - 2 * margin))
+            if excess <= 0:
+                continue
             cut_a = near_zero(samples, mid - excess // 2, radius)
+            cut_a = max(cursor, max(a + margin, min(cut_a, b - margin - excess)))
             cut_b = near_zero(samples, cut_a + excess, radius)
-            cut_a = max(cursor, min(cut_a, b))
-            cut_b = max(cut_a, min(cut_b, b))
+            cut_b = max(cut_a, min(cut_b, b - margin))
             parts.append(samples[cursor:cut_a])
             cursor = cut_b
         elif have < target:
