@@ -72,8 +72,14 @@ SEED_VOICES = [
 # database
 
 def db():
-    connection = sqlite3.connect(DB_PATH)
+    connection = sqlite3.connect(DB_PATH, timeout=30)
     connection.row_factory = sqlite3.Row
+    # wal lets one writer and many readers work at once, busy_timeout waits instead of failing
+    try:
+        connection.execute("pragma journal_mode=wal")
+        connection.execute("pragma busy_timeout=30000")
+    except Exception:
+        pass
     return connection
 
 
@@ -174,6 +180,7 @@ def init_db():
     add_column(connection, "experiments", "fade_out_s", "real")
     add_column(connection, "experiments", "pause_ms", "integer")
     add_column(connection, "experiments", "long_pause_ms", "integer")
+    add_column(connection, "experiments", "status", "text default 'ok'")
     add_column(connection, "context_files", "size_class", "text default ''")
 
     connection.execute("update experiments set protocol_id = id where protocol_id is null")
@@ -622,7 +629,8 @@ def describe_audio(path, label, log):
 RETRYABLE = {429, 500, 502, 503, 504, 529}
 
 
-def call_claude(model, system_prompt, user_prompt, max_tokens=4096):
+def call_claude_detailed(model, system_prompt, user_prompt, max_tokens=16000):
+    """Returns (text, meta). meta carries stop_reason, block kinds and token counts."""
     if not ANTHROPIC_API_KEY:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not set on the server")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -636,7 +644,16 @@ def call_claude(model, system_prompt, user_prompt, max_tokens=4096):
                 messages=[{"role": "user", "content": user_prompt}],
             )
             text = "".join(block.text for block in message.content if block.type == "text")
-            return text.strip()
+            kinds = [getattr(block, "type", "?") for block in message.content]
+            usage = getattr(message, "usage", None)
+            meta = {
+                "stop_reason": getattr(message, "stop_reason", None),
+                "block_kinds": kinds,
+                "max_tokens": max_tokens,
+                "output_tokens": getattr(usage, "output_tokens", None) if usage else None,
+                "truncated": getattr(message, "stop_reason", None) == "max_tokens",
+            }
+            return text.strip(), meta
         except Exception as error:
             last_error = error
             status = getattr(error, "status_code", None)
@@ -648,10 +665,45 @@ def call_claude(model, system_prompt, user_prompt, max_tokens=4096):
     raise HTTPException(502, f"claude call failed: {last_error}")
 
 
+def call_claude(model, system_prompt, user_prompt, max_tokens=16000):
+    text, _ = call_claude_detailed(model, system_prompt, user_prompt, max_tokens)
+    return text
+
+
+def empty_text_reason(meta):
+    """Says why the model sent back no text, so the error is not just 'empty text'."""
+    stop = meta.get("stop_reason")
+    kinds = meta.get("block_kinds") or []
+    limit = meta.get("max_tokens")
+    if stop == "max_tokens" and "text" not in kinds:
+        return (f"the model used its whole {limit} token budget before writing any speech "
+                f"(blocks returned: {', '.join(kinds) or 'none'}). raise max_tokens or use a different model")
+    if stop == "refusal":
+        return "the model refused this request"
+    if not kinds:
+        return f"the model returned no content at all (stop_reason {stop})"
+    return f"the model returned no text (stop_reason {stop}, blocks: {', '.join(kinds)})"
+
+
+def truncation_note(meta):
+    """One log line when the speech was cut off mid way, else None."""
+    if not meta.get("truncated"):
+        return None
+    used = meta.get("output_tokens")
+    used_part = f", used {used} output tokens" if used else ""
+    return (f"warning: speech was cut off, the model hit the {meta.get('max_tokens')} token limit"
+            f"{used_part}. the last sentence is incomplete")
+
+
 AUTOGEN_SYSTEM = (
-    "You write a short realistic test answer to an onboarding question for a "
-    "meditation app, in the first person. Two or three sentences, plain everyday "
-    "language, specific rather than generic. Output only the answer."
+    "You are given one question. Write a short realistic answer to it, in the first person, "
+    "as a person using an app would answer it.\n\n"
+    "Take the question exactly as it is written. Do not judge whether it is a sensible question, "
+    "do not suggest a different question, and never ask for clarification. Whatever the question "
+    "is about, answer that question. If it is vague, pick a plausible specific situation and "
+    "answer from inside it.\n\n"
+    "Two or three sentences. Plain everyday language. Specific rather than generic. "
+    "Output only the answer, with no preamble, no quotes and no explanation."
 )
 
 
@@ -1419,6 +1471,7 @@ def experiment_row(row):
         "pause_ms": row["pause_ms"],
         "long_pause_ms": row["long_pause_ms"],
         "prompt_source": row["prompt_source"] or "",
+        "status": row["status"] or "ok",
     }
 
 
@@ -1504,12 +1557,15 @@ def write_answer(req: WriteReq):
 
         log.append(f"system prompt {len(system_prompt)} chars, user prompt {len(user_prompt)} chars")
 
-        speech = call_claude(req.model, system_prompt, user_prompt)
+        speech, meta = call_claude_detailed(req.model, system_prompt, user_prompt)
         if not speech:
-            raise HTTPException(502, "claude returned empty text")
+            raise HTTPException(502, empty_text_reason(meta))
 
         word_count = len(speech.split())
         log.append(f"claude returned {word_count} words, {len(speech)} chars")
+        cut_off = truncation_note(meta)
+        if cut_off:
+            log.append(cut_off)
 
         validation = run_validate(validate, speech)
         if validate is None:
@@ -1558,9 +1614,9 @@ def autogen_answer(req: AutogenReq):
     question = req.question.strip()
     if not question:
         raise HTTPException(400, "no question given")
-    answer = call_claude(AUTOGEN_MODEL, AUTOGEN_SYSTEM, question, max_tokens=300)
+    answer, meta = call_claude_detailed(AUTOGEN_MODEL, AUTOGEN_SYSTEM, question, max_tokens=1000)
     if not answer:
-        raise HTTPException(502, "claude returned empty text")
+        raise HTTPException(502, empty_text_reason(meta))
     return {"answer": answer}
 
 
@@ -1586,10 +1642,10 @@ def update_prompt(req: UpdatePromptReq):
 
     user_content = build_feedback_prompt(req.prompt_py, req.original_speech,
                                          req.final_speech, marks, edits)
-    revised = call_claude(req.model, UPDATE_PROMPT_SYSTEM, user_content, max_tokens=16000)
+    revised, meta = call_claude_detailed(req.model, UPDATE_PROMPT_SYSTEM, user_content, max_tokens=16000)
     revised = strip_code_fences(revised)
     if not revised:
-        raise HTTPException(502, "claude returned empty text")
+        raise HTTPException(502, empty_text_reason(meta))
     try:
         compile(revised, "revised_prompt.py", "exec")
     except SyntaxError as error:
@@ -1649,6 +1705,18 @@ def attach_or_create(connection, experiment_id, topic, questions_json, prompt_py
 
 
 @app.post("/api/bench/make")
+def save_failed_run(connection, experiment_id, log):
+    # keep the row so the run log survives, the log is the only record of why it failed
+    try:
+        connection.execute(
+            "update experiments set run_log = ?, status = 'failed' where id = ?",
+            ("\n".join(log), experiment_id),
+        )
+        connection.commit()
+    except Exception:
+        pass
+
+
 def make_mp3(
     topic: str = Form(""),
     questions: str = Form("[]"),
@@ -1776,24 +1844,13 @@ def make_mp3(
         connection.commit()
         row = fetch_experiment(connection, target_id)
         return experiment_row(row)
-    except HTTPException:
-        if not attached:
-            connection.execute("delete from experiments where id = ?", (target_id,))
-            connection.commit()
-        else:
-            connection.execute("update experiments set run_log = ? where id = ?",
-                               ("\n".join(log), target_id))
-            connection.commit()
+    except HTTPException as error:
+        log.append(f"failed: {error.detail}")
+        save_failed_run(connection, target_id, log)
         raise
     except Exception as error:
         log.append(traceback.format_exc().strip())
-        if not attached:
-            connection.execute("delete from experiments where id = ?", (target_id,))
-            connection.commit()
-        else:
-            connection.execute("update experiments set run_log = ? where id = ?",
-                               ("\n".join(log), target_id))
-            connection.commit()
+        save_failed_run(connection, target_id, log)
         raise HTTPException(500, f"make failed: {error}")
     finally:
         connection.close()
