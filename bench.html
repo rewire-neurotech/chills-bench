@@ -430,8 +430,21 @@ async function apiDelete(url){
   return r.json();
 }
 async function errText(r){
-  try{ const d = await r.json(); return d.detail || JSON.stringify(d); }
-  catch(_){ return r.status + ' ' + r.statusText; }
+  // read the body once as text, then try json, so a non json error page is not lost
+  let body = '';
+  try{ body = await r.text(); }catch(_){}
+  try{
+    const d = JSON.parse(body);
+    if(d && d.detail) return d.detail;
+    if(d) return JSON.stringify(d);
+  }catch(_){}
+  const label = r.statusText ? r.status + ' ' + r.statusText : String(r.status);
+  if(r.status === 502 || r.status === 503 || r.status === 504){
+    return label + ': the server did not reply. the worker was most likely killed part way through, '
+      + 'so nothing was written to the run log. long speeches and long music tracks make this more likely.';
+  }
+  const snippet = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return snippet ? label + ': ' + snippet : label;
 }
 function esc(text){
   const d = document.createElement('div'); d.textContent = text == null ? '' : String(text); return d.innerHTML;
