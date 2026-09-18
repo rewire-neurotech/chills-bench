@@ -60,8 +60,25 @@ OLD_TAG_MAP = {
     "day 5 pick": "Good",
 }
 
-MODELS = ["claude-opus-4-8", "claude-fable-5", "claude-sonnet-4-6"]
+MODEL_REGISTRY = [
+    {"id": "claude-opus-4-8", "provider": "anthropic", "max_tokens": 16000},
+    {"id": "claude-fable-5", "provider": "anthropic", "max_tokens": 16000},
+    {"id": "claude-sonnet-4-6", "provider": "anthropic", "max_tokens": 16000},
+]
+MODELS = [entry["id"] for entry in MODEL_REGISTRY]
 AUTOGEN_MODEL = "claude-haiku-4-5-20251001"
+
+
+def model_entry(model_id):
+    for entry in MODEL_REGISTRY:
+        if entry["id"] == model_id:
+            return entry
+    return None
+
+
+def provider_for(model_id):
+    entry = model_entry(model_id)
+    return entry["provider"] if entry else "anthropic"
 
 SEED_VOICES = [
     ("Christian", "lMILJ9d29MrRXy9BIgcz"),
@@ -81,6 +98,76 @@ def db():
     except Exception:
         pass
     return connection
+
+
+def backfill_experiences(connection):
+    # every run made before experiences existed becomes its own experience, version 1
+    rows = connection.execute(
+        "select id, created_at, title, topic from experiments where experience_id is null"
+    ).fetchall()
+    for row in rows:
+        title = (row["title"] or "").strip()
+        if not title:
+            topic_lines = (row["topic"] or "").strip().splitlines()
+            title = topic_lines[0][:60] if topic_lines else ""
+        cursor = connection.execute(
+            "insert into experiences (created_at, title, author, version) values (?, ?, ?, ?)",
+            (row["created_at"], title, "", 1),
+        )
+        connection.execute(
+            "update experiments set experience_id = ?, version = 1 where id = ?",
+            (cursor.lastrowid, row["id"]),
+        )
+    if rows:
+        connection.commit()
+        print(f"backfilled {len(rows)} runs into experiences")
+
+
+def new_experience(connection, title="", author=""):
+    cursor = connection.execute(
+        "insert into experiences (created_at, title, author, version) values (?, ?, ?, 0)",
+        (now(), title.strip()[:200], author.strip()[:80]),
+    )
+    return cursor.lastrowid
+
+
+def next_version(connection, experience_id):
+    """Bumps and returns the experience's version number."""
+    row = connection.execute(
+        "select version from experiences where id = ?", (experience_id,)
+    ).fetchone()
+    if not row:
+        return 1
+    version = (row["version"] or 0) + 1
+    connection.execute("update experiences set version = ? where id = ?", (version, experience_id))
+    return version
+
+
+def experience_of(connection, experiment_id):
+    """The experience a run belongs to, or None."""
+    if not experiment_id:
+        return None
+    row = connection.execute(
+        "select experience_id from experiments where id = ?", (experiment_id,)
+    ).fetchone()
+    return row["experience_id"] if row and row["experience_id"] else None
+
+
+def experience_row(connection, experience_id):
+    if not experience_id:
+        return None
+    row = connection.execute(
+        "select * from experiences where id = ?", (experience_id,)
+    ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "created_at": row["created_at"],
+        "title": row["title"] or "",
+        "author": row["author"] or "",
+        "version": row["version"] or 0,
+    }
 
 
 def add_column(connection, table, column, definition):
@@ -181,6 +268,18 @@ def init_db():
     add_column(connection, "experiments", "pause_ms", "integer")
     add_column(connection, "experiments", "long_pause_ms", "integer")
     add_column(connection, "experiments", "status", "text default 'ok'")
+    add_column(connection, "experiments", "experience_id", "integer")
+    add_column(connection, "experiments", "version", "integer default 1")
+    connection.execute("""
+        create table if not exists experiences (
+            id integer primary key autoincrement,
+            created_at text not null,
+            title text default '',
+            author text default '',
+            version integer default 0
+        )
+    """)
+    backfill_experiences(connection)
     add_column(connection, "context_files", "size_class", "text default ''")
 
     connection.execute("update experiments set protocol_id = id where protocol_id is null")
@@ -335,7 +434,32 @@ PROMPT_NAMES = (
 )
 
 
+def looks_like_python(code):
+    """True when the box holds a prompt file rather than plain prose."""
+    text = code.strip()
+    if not text:
+        return False
+    for name in PROMPT_NAMES:
+        if re.search(r"^\s*" + name + r"\s*=", text, re.M):
+            return True
+    if re.search(r"^\s*def\s+\w+\s*\(", text, re.M):
+        return True
+    if re.search(r"^\s*(import|from)\s+\w", text, re.M):
+        return True
+    return False
+
+
+def load_plain_prompt(text, topic):
+    """The box holds the prompt itself, so use it as written."""
+    system_prompt = text.strip()
+    user_prompt = topic if topic else "Write the piece now."
+    return system_prompt, user_prompt, "plain text", None
+
+
 def load_prompt_file(code, topic):
+    if not looks_like_python(code):
+        return load_plain_prompt(code, topic)
+
     try:
         namespace = exec_pasted(code, "pasted_prompt")
     except Exception as error:
@@ -1472,6 +1596,8 @@ def experiment_row(row):
         "long_pause_ms": row["long_pause_ms"],
         "prompt_source": row["prompt_source"] or "",
         "status": row["status"] or "ok",
+        "experience_id": row["experience_id"] or 0,
+        "version": row["version"] or 1,
     }
 
 
@@ -1528,6 +1654,9 @@ class WriteReq(BaseModel):
     prompt_py: str = ""
     model: str = "claude-sonnet-4-6"
     context_ids: str = ""
+    experience_id: int = 0
+    title: str = ""
+    author: str = ""
 
 
 @app.post("/api/bench/write")
@@ -1577,16 +1706,26 @@ def write_answer(req: WriteReq):
         else:
             log.append("validate() found no problems")
 
+        experience_id = req.experience_id or new_experience(connection, req.title, req.author)
+        version = next_version(connection, experience_id)
+        if req.title.strip() or req.author.strip():
+            connection.execute(
+                "update experiences set title = ?, author = ? where id = ?",
+                (req.title.strip()[:200], req.author.strip()[:80], experience_id),
+            )
+
         cursor = connection.execute(
             "insert into experiments (created_at, topic, questions, prompt_py, model, speech_text, "
-            "context_ids, day_number, run_log, validation, word_count, prompt_source) "
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "context_ids, day_number, run_log, validation, word_count, prompt_source, "
+            "experience_id, version) "
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (now(), topic, json.dumps(questions), req.prompt_py, req.model, speech,
              ",".join(str(i) for i in used_ids), 1,
-             "\n".join(log), validation, word_count, source_name),
+             "\n".join(log), validation, word_count, source_name,
+             experience_id, version),
         )
         experiment_id = cursor.lastrowid
-        title = build_title(connection, topic, 1, req.model, "")
+        title = req.title.strip() or build_title(connection, topic, 1, req.model, "")
         connection.execute(
             "update experiments set protocol_id = ?, title = ? where id = ?",
             (experiment_id, title, experiment_id),
@@ -1596,6 +1735,8 @@ def write_answer(req: WriteReq):
         return {
             "speech": speech,
             "experiment_id": experiment_id,
+            "experience_id": experience_id,
+            "version": version,
             "word_count": word_count,
             "validation": validation,
             "prompt_source": source_name,
@@ -1693,10 +1834,12 @@ def attach_or_create(connection, experiment_id, topic, questions_json, prompt_py
         row = fetch_experiment(connection, experiment_id)
         if row and not row["voice_file"] and not row["mix_file"]:
             return experiment_id, True
+    experience_id = experience_of(connection, experiment_id) or new_experience(connection)
+    version = next_version(connection, experience_id)
     cursor = connection.execute(
-        "insert into experiments (created_at, topic, questions, prompt_py, model, speech_text) "
-        "values (?, ?, ?, ?, ?, ?)",
-        (now(), topic, questions_json, prompt_py, model, speech),
+        "insert into experiments (created_at, topic, questions, prompt_py, model, speech_text, "
+        "experience_id, version) values (?, ?, ?, ?, ?, ?, ?, ?)",
+        (now(), topic, questions_json, prompt_py, model, speech, experience_id, version),
     )
     new_id = cursor.lastrowid
     connection.execute("update experiments set protocol_id = ? where id = ?", (new_id, new_id))
@@ -1900,8 +2043,20 @@ def delete_experiment(experiment_id: int):
 def list_experiments():
     connection = db()
     rows = connection.execute("select * from experiments order by id desc").fetchall()
+    experiences = connection.execute(
+        "select * from experiences order by id desc"
+    ).fetchall()
     connection.close()
-    return {"experiments": [experiment_row(row) for row in rows], "tags": TAGS, "models": MODELS}
+    return {
+        "experiments": [experiment_row(row) for row in rows],
+        "experiences": [
+            {"id": e["id"], "created_at": e["created_at"], "title": e["title"] or "",
+             "author": e["author"] or "", "version": e["version"] or 0}
+            for e in experiences
+        ],
+        "tags": TAGS,
+        "models": MODELS,
+    }
 
 
 class TagReq(BaseModel):
@@ -1958,6 +2113,50 @@ def set_title(experiment_id: int, req: TitleReq):
     connection.commit()
     connection.close()
     return {"status": "ok"}
+
+
+# experiences, the thing a run is a version of
+
+class ExperienceReq(BaseModel):
+    title: str = ""
+    author: str = ""
+
+
+@app.get("/api/bench/experiences/{experience_id}")
+def get_experience(experience_id: int):
+    connection = db()
+    data = experience_row(connection, experience_id)
+    connection.close()
+    if not data:
+        raise HTTPException(404, "experience not found")
+    return data
+
+
+@app.post("/api/bench/experiences")
+def create_experience(req: ExperienceReq):
+    connection = db()
+    experience_id = new_experience(connection, req.title, req.author)
+    connection.commit()
+    data = experience_row(connection, experience_id)
+    connection.close()
+    return data
+
+
+@app.post("/api/bench/experiences/{experience_id}")
+def update_experience(experience_id: int, req: ExperienceReq):
+    connection = db()
+    row = connection.execute("select id from experiences where id = ?", (experience_id,)).fetchone()
+    if not row:
+        connection.close()
+        raise HTTPException(404, "experience not found")
+    connection.execute(
+        "update experiences set title = ?, author = ? where id = ?",
+        (req.title.strip()[:200], req.author.strip()[:80], experience_id),
+    )
+    connection.commit()
+    data = experience_row(connection, experience_id)
+    connection.close()
+    return data
 
 
 # compose state, the whole middle column saved as one blob
