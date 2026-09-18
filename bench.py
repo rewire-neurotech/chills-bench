@@ -34,11 +34,12 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 DATA_DIR = Path(os.getenv("BENCH_DATA_DIR", "./data"))
 AUDIO_DIR = DATA_DIR / "audio"
+PRIMER_DIR = DATA_DIR / "primers"
 MUSIC_DIR = DATA_DIR / "music"
 CONTEXT_DIR = DATA_DIR / "context"
 DB_PATH = DATA_DIR / "bench.db"
 
-for folder in (DATA_DIR, AUDIO_DIR, MUSIC_DIR, CONTEXT_DIR):
+for folder in (DATA_DIR, AUDIO_DIR, PRIMER_DIR, MUSIC_DIR, CONTEXT_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Stimgen 3")
@@ -180,6 +181,151 @@ def add_column(connection, table, column, definition):
         pass
 
 
+PRIMERS_FILE = Path(__file__).parent / "primers.json"
+
+# families in the order felix listed them, anything unlisted goes after
+FAMILY_ORDER = ["Somatic", "Breath", "Attention", "Affect", "Induction", "Cognitive"]
+
+# the ranges in primers.json are [pause] 1 to 2 s and [long pause] 4 to 6 s, middle of each
+PRIMER_PAUSE_MS = 1500
+PRIMER_LONG_PAUSE_MS = 5000
+
+
+def family_rank(family):
+    try:
+        return FAMILY_ORDER.index(family)
+    except ValueError:
+        return len(FAMILY_ORDER)
+
+
+def load_primers(connection):
+    """Loads felix's primers.json. Leaves anything the user saved alone."""
+    if not PRIMERS_FILE.exists():
+        print("primers.json not found, no primers loaded")
+        return
+    try:
+        data = json.loads(PRIMERS_FILE.read_text(encoding="utf-8"))
+    except Exception as error:
+        print(f"primers.json could not be read: {error}")
+        return
+
+    entries = data.get("primers") or []
+    added = 0
+    for position, entry in enumerate(entries):
+        primer_id = str(entry.get("id") or "").strip()
+        if not primer_id:
+            continue
+        existing = connection.execute(
+            "select id, is_custom from primers where id = ?", (primer_id,)
+        ).fetchone()
+        if existing and existing["is_custom"]:
+            continue
+        family = entry.get("family") or ""
+        order = family_rank(family) * 1000 + position
+        connection.execute(
+            "insert or replace into primers (id, family, name, subtitle, text, words, pauses, "
+            "long_pauses, is_custom, from_id, sort_order, created_at) "
+            "values (?, ?, ?, ?, ?, ?, ?, ?, 0, '', ?, ?)",
+            (primer_id, family, entry.get("name") or "", entry.get("subtitle") or "",
+             entry.get("text") or "", int(entry.get("words") or 0),
+             int(entry.get("pauses") or 0), int(entry.get("long_pauses") or 0),
+             order, now()),
+        )
+        added += 1
+    if added:
+        print(f"loaded {added} primers from primers.json")
+
+
+def primer_row(row):
+    return {
+        "id": row["id"],
+        "family": row["family"] or "",
+        "name": row["name"] or "",
+        "subtitle": row["subtitle"] or "",
+        "text": row["text"] or "",
+        "words": row["words"] or 0,
+        "pauses": row["pauses"] or 0,
+        "long_pauses": row["long_pauses"] or 0,
+        "is_custom": bool(row["is_custom"]),
+        "from_id": row["from_id"] or "",
+    }
+
+
+def fetch_primer(connection, primer_id):
+    return connection.execute("select * from primers where id = ?", (primer_id,)).fetchone()
+
+
+def settings_key(voice_settings, tts_provider):
+    """One string standing for the voice settings, so a settings change means a fresh render."""
+    parts = [
+        tts_provider,
+        f"{float(voice_settings.get('stability', 0.5)):.3f}",
+        f"{float(voice_settings.get('similarity_boost', 0.7)):.3f}",
+        f"{float(voice_settings.get('style', 0.0)):.3f}",
+        "1" if voice_settings.get("use_speaker_boost") else "0",
+        str(PRIMER_PAUSE_MS),
+        str(PRIMER_LONG_PAUSE_MS),
+    ]
+    return "_".join(parts)
+
+
+def next_custom_primer_id(connection):
+    rows = connection.execute("select id from primers where id like 'Y%'").fetchall()
+    used = set()
+    for row in rows:
+        try:
+            used.add(int(str(row["id"])[1:]))
+        except ValueError:
+            continue
+    number = 1
+    while number in used:
+        number += 1
+    return f"Y{number}"
+
+
+def primer_audio_path(connection, primer_id, voice_id, voice_settings, tts_provider, log):
+    """Renders the primer if this voice and settings have not been rendered before."""
+    row = fetch_primer(connection, primer_id)
+    if not row:
+        raise HTTPException(404, f"primer {primer_id} not found")
+    key = settings_key(voice_settings, tts_provider)
+
+    cached = connection.execute(
+        "select file, duration_s from primer_audio where primer_id = ? and voice_id = ? "
+        "and settings_key = ?",
+        (primer_id, voice_id, key),
+    ).fetchone()
+    if cached and (PRIMER_DIR / cached["file"]).exists():
+        log.append(f"primer {primer_id} {row['name']} from cache, {fmt_seconds(cached['duration_s'])}")
+        return PRIMER_DIR / cached["file"], cached["duration_s"]
+
+    text = (row["text"] or "").strip()
+    if not text:
+        raise HTTPException(400, f"primer {primer_id} has no text")
+
+    file_name = f"{primer_id}_{voice_id}_{abs(hash(key)) % (10 ** 8)}.mp3"
+    out_path = PRIMER_DIR / file_name
+    PRIMER_DIR.mkdir(parents=True, exist_ok=True)
+    log.append(f"primer {primer_id} {row['name']} rendering with voice {voice_id}")
+    synth(text, voice_id, voice_settings, out_path, tts_provider,
+          PRIMER_PAUSE_MS, PRIMER_LONG_PAUSE_MS, log)
+
+    duration = content_duration_sec(out_path) or 0.0
+    connection.execute(
+        "insert or replace into primer_audio (primer_id, voice_id, settings_key, file, "
+        "duration_s, created_at) values (?, ?, ?, ?, ?, ?)",
+        (primer_id, voice_id, key, file_name, duration, now()),
+    )
+    connection.commit()
+    log.append(f"primer {primer_id} rendered, {fmt_seconds(duration)}")
+    return out_path, duration
+
+
+def fmt_seconds(seconds):
+    seconds = int(round(seconds or 0))
+    return f"{seconds // 60}:{seconds % 60:02d}"
+
+
 def init_db():
     connection = db()
     connection.execute("""
@@ -301,6 +447,39 @@ def init_db():
             "update context_files set size_class = ? where id = ?",
             (size_class_for(row["chars"] or 0), row["id"]),
         )
+
+    connection.execute("""
+        create table if not exists primers (
+            id text primary key,
+            family text default '',
+            name text default '',
+            subtitle text default '',
+            text text default '',
+            words integer default 0,
+            pauses integer default 0,
+            long_pauses integer default 0,
+            is_custom integer default 0,
+            from_id text default '',
+            sort_order integer default 0,
+            created_at text default ''
+        )
+    """)
+    connection.execute("""
+        create table if not exists primer_audio (
+            id integer primary key autoincrement,
+            primer_id text not null,
+            voice_id text not null,
+            settings_key text not null,
+            file text not null,
+            duration_s real default 0,
+            created_at text default ''
+        )
+    """)
+    connection.execute(
+        "create unique index if not exists primer_audio_key "
+        "on primer_audio (primer_id, voice_id, settings_key)"
+    )
+    load_primers(connection)
 
     seeded = connection.execute("select count(*) as n from voices").fetchone()["n"]
     if seeded == 0:
@@ -2142,6 +2321,139 @@ def make_status(job_id: str):
     return job
 
 
+# primers, the piece that plays before the speech
+
+class PrimerSaveReq(BaseModel):
+    from_id: str = ""
+    name: str = ""
+    subtitle: str = ""
+    text: str = ""
+
+
+@app.get("/api/bench/primers")
+def list_primers():
+    connection = db()
+    rows = connection.execute(
+        "select * from primers order by is_custom, sort_order, id"
+    ).fetchall()
+    connection.close()
+    return {
+        "primers": [primer_row(row) for row in rows],
+        "families": FAMILY_ORDER,
+        "pause_ms": PRIMER_PAUSE_MS,
+        "long_pause_ms": PRIMER_LONG_PAUSE_MS,
+    }
+
+
+@app.get("/api/bench/primers/{primer_id}")
+def get_primer(primer_id: str):
+    connection = db()
+    row = fetch_primer(connection, primer_id)
+    connection.close()
+    if not row:
+        raise HTTPException(404, "primer not found")
+    return primer_row(row)
+
+
+@app.post("/api/bench/primers")
+def save_primer(req: PrimerSaveReq):
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "the primer text is empty")
+    connection = db()
+    try:
+        source = fetch_primer(connection, req.from_id.strip()) if req.from_id.strip() else None
+        primer_id = next_custom_primer_id(connection)
+        name = req.name.strip() or ((source["name"] + " (edited)") if source else "Untitled primer")
+        subtitle = req.subtitle.strip()
+        if not subtitle and source:
+            subtitle = f"From {source['id']}"
+        connection.execute(
+            "insert into primers (id, family, name, subtitle, text, words, pauses, long_pauses, "
+            "is_custom, from_id, sort_order, created_at) values (?, 'Yours', ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)",
+            (primer_id, name[:120], subtitle[:200], text,
+             len(re.sub(r"\[(long pause|pause)\]", "", text).split()),
+             text.count("[pause]"), text.count("[long pause]"),
+             req.from_id.strip(), 9_000_000, now()),
+        )
+        connection.commit()
+        row = fetch_primer(connection, primer_id)
+        return primer_row(row)
+    finally:
+        connection.close()
+
+
+@app.delete("/api/bench/primers/{primer_id}")
+def delete_primer(primer_id: str):
+    connection = db()
+    try:
+        row = fetch_primer(connection, primer_id)
+        if not row:
+            raise HTTPException(404, "primer not found")
+        if not row["is_custom"]:
+            raise HTTPException(400, "this primer came from primers.json and cannot be deleted")
+        files = connection.execute(
+            "select file from primer_audio where primer_id = ?", (primer_id,)
+        ).fetchall()
+        for item in files:
+            try:
+                os.remove(PRIMER_DIR / item["file"])
+            except Exception:
+                pass
+        connection.execute("delete from primer_audio where primer_id = ?", (primer_id,))
+        connection.execute("delete from primers where id = ?", (primer_id,))
+        connection.commit()
+        return {"status": "ok"}
+    finally:
+        connection.close()
+
+
+class PrimerRenderReq(BaseModel):
+    primer_id: str = ""
+    voice_id: str = ""
+    stability: float = 0.45
+    similarity: float = 0.80
+    style: float = 0.20
+    boost: bool = True
+    tts_provider: str = "elevenlabs"
+
+
+@app.post("/api/bench/primers/render")
+def render_primer(req: PrimerRenderReq):
+    """Renders on demand, so a voice nobody uses is never rendered."""
+    voice_id = req.voice_id.strip()
+    if not voice_id:
+        raise HTTPException(400, "voice id is empty")
+    voice_settings = {
+        "stability": req.stability,
+        "similarity_boost": req.similarity,
+        "style": req.style,
+        "use_speaker_boost": req.boost,
+    }
+    log = []
+    connection = db()
+    try:
+        path, duration = primer_audio_path(connection, req.primer_id.strip(), voice_id,
+                                           voice_settings, req.tts_provider, log)
+        return {
+            "primer_id": req.primer_id.strip(),
+            "url": f"/api/bench/primer_audio/{path.name}",
+            "duration_s": duration,
+            "duration": fmt_seconds(duration),
+            "log": "\n".join(log),
+        }
+    finally:
+        connection.close()
+
+
+@app.get("/api/bench/primer_audio/{filename}")
+def get_primer_audio(filename: str, request: Request):
+    path = PRIMER_DIR / Path(filename).name
+    if not path.exists():
+        raise HTTPException(404, "primer audio not found")
+    return ranged_file_response(path, request)
+
+
 @app.delete("/api/bench/experiments/{experiment_id}")
 def delete_experiment(experiment_id: int):
     connection = db()
@@ -2637,14 +2949,10 @@ def get_zip(experiment_id: int):
     )
 
 
-@app.get("/api/bench/audio/{filename}")
-def get_audio(filename: str, request: Request):
-    safe_name = Path(filename).name
-    file_path = AUDIO_DIR / safe_name
-    if not file_path.exists():
-        raise HTTPException(404, "file not found")
+def ranged_file_response(file_path, request):
+    safe_name = Path(file_path).name
     media_type = "audio/mpeg" if safe_name.endswith(".mp3") else "audio/wav"
-    data = file_path.read_bytes()
+    data = Path(file_path).read_bytes()
     total = len(data)
 
     range_header = request.headers.get("range")
@@ -2684,6 +2992,15 @@ def get_audio(filename: str, request: Request):
             "Content-Disposition": f"inline; filename={safe_name}",
         },
     )
+
+
+@app.get("/api/bench/audio/{filename}")
+def get_audio(filename: str, request: Request):
+    safe_name = Path(filename).name
+    file_path = AUDIO_DIR / safe_name
+    if not file_path.exists():
+        raise HTTPException(404, "file not found")
+    return ranged_file_response(file_path, request)
 
 
 @app.get("/api/health")
