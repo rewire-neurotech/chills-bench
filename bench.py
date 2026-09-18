@@ -9,10 +9,13 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import traceback
 import types
+import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1647,6 +1650,62 @@ def file_still_used(connection, field, value, exclude_id):
 init_db()
 
 
+# make jobs, so a long render is not one blocking http request
+
+MAKE_JOBS = {}
+MAKE_JOBS_LOCK = threading.Lock()
+MAKE_POOL = ThreadPoolExecutor(max_workers=1)
+JOB_KEEP = 40
+
+
+def new_job():
+    job_id = uuid.uuid4().hex[:12]
+    with MAKE_JOBS_LOCK:
+        MAKE_JOBS[job_id] = {"state": "queued", "experiment": None, "error": "", "started": now()}
+        # drop the oldest finished jobs so the dict cannot grow forever
+        if len(MAKE_JOBS) > JOB_KEEP:
+            finished = [k for k, v in MAKE_JOBS.items() if v["state"] in ("done", "error")]
+            for key in finished[:len(MAKE_JOBS) - JOB_KEEP]:
+                MAKE_JOBS.pop(key, None)
+    return job_id
+
+
+def set_job(job_id, **fields):
+    with MAKE_JOBS_LOCK:
+        job = MAKE_JOBS.get(job_id)
+        if job:
+            job.update(fields)
+
+
+def get_job(job_id):
+    with MAKE_JOBS_LOCK:
+        job = MAKE_JOBS.get(job_id)
+        return dict(job) if job else None
+
+
+def recover_running_runs():
+    # a run still marked running at startup means the worker died part way through
+    connection = db()
+    try:
+        rows = connection.execute(
+            "select id, run_log from experiments where status = 'running'"
+        ).fetchall()
+        for row in rows:
+            log = (row["run_log"] or "") + "\nfailed: the server restarted while this run was in progress"
+            connection.execute(
+                "update experiments set status = 'failed', run_log = ? where id = ?",
+                (log.strip(), row["id"]),
+            )
+        if rows:
+            connection.commit()
+            print(f"marked {len(rows)} interrupted runs as failed")
+    finally:
+        connection.close()
+
+
+recover_running_runs()
+
+
 # endpoints
 
 class WriteReq(BaseModel):
@@ -1847,7 +1906,6 @@ def attach_or_create(connection, experiment_id, topic, questions_json, prompt_py
     return new_id, False
 
 
-@app.post("/api/bench/make")
 def save_failed_run(connection, experiment_id, log):
     # keep the row so the run log survives, the log is the only record of why it failed
     try:
@@ -1860,27 +1918,27 @@ def save_failed_run(connection, experiment_id, log):
         pass
 
 
-def make_mp3(
-    topic: str = Form(""),
-    questions: str = Form("[]"),
-    speech: str = Form(...),
-    prompt_py: str = Form(""),
-    mix_py: str = Form(""),
-    model: str = Form(""),
-    voice_id: str = Form(...),
-    stability: float = Form(0.5),
-    style: float = Form(0.0),
-    boost: bool = Form(True),
-    tts_provider: str = Form("elevenlabs"),
-    experiment_id: int = Form(0),
-    voice_only: bool = Form(False),
-    balance_db: str = Form(""),
-    fade_in_s: str = Form(""),
-    fade_out_s: str = Form(""),
-    pause_ms: str = Form(""),
-    long_pause_ms: str = Form(""),
-    music_ref: str = Form(""),
-    music: UploadFile | None = File(default=None),
+def run_make(
+    topic="",
+    questions="[]",
+    speech="",
+    prompt_py="",
+    mix_py="",
+    model="",
+    voice_id="",
+    stability=0.5,
+    style=0.0,
+    boost=True,
+    tts_provider="elevenlabs",
+    experiment_id=0,
+    voice_only=False,
+    balance_db="",
+    fade_in_s="",
+    fade_out_s="",
+    pause_ms="",
+    long_pause_ms="",
+    music_ref="",
+    music=None,
 ):
     tts_provider = tts_provider.strip() or "elevenlabs"
     if tts_provider not in ("elevenlabs", "eleven_v2"):
@@ -1919,6 +1977,8 @@ def make_mp3(
         existing = fetch_experiment(connection, target_id)
         if existing and existing["run_log"]:
             log = existing["run_log"].splitlines() + ["", f"make started {now()}"]
+    connection.execute("update experiments set status = 'running' where id = ?", (target_id,))
+    connection.commit()
 
     try:
         music_path = ""
@@ -1978,7 +2038,7 @@ def make_mp3(
             "voice_id = ?, stability = ?, style = ?, boost = ?, speech_text = ?, music_filename = ?, "
             "music_file = ?, voice_file = ?, mix_file = ?, mix_source = ?, tts_provider = ?, "
             "run_log = ?, word_count = ?, balance_db = ?, fade_in_s = ?, fade_out_s = ?, "
-            "pause_ms = ?, long_pause_ms = ?, title = ? where id = ?",
+            "pause_ms = ?, long_pause_ms = ?, title = ?, status = 'ok' where id = ?",
             (topic.strip(), json.dumps(parsed_questions), prompt_py, mix_py, model, voice_id,
              stability, style, int(boost), speech, music_filename, music_rel, voice_file, mix_file,
              source, tts_provider, "\n".join(log), len(speech.split()), settings["balance_db"],
@@ -1997,6 +2057,89 @@ def make_mp3(
         raise HTTPException(500, f"make failed: {error}")
     finally:
         connection.close()
+
+
+class SavedUpload:
+    """Stands in for an UploadFile once the request is over and the job runs on its own."""
+    def __init__(self, filename, path):
+        self.filename = filename
+        self.file = open(path, "rb")
+
+
+def run_make_job(job_id, kwargs, temp_music):
+    set_job(job_id, state="running")
+    try:
+        result = run_make(**kwargs)
+        set_job(job_id, state="done", experiment=result)
+    except HTTPException as error:
+        set_job(job_id, state="error", error=str(error.detail))
+    except Exception as error:
+        set_job(job_id, state="error", error=f"make failed: {error}")
+    finally:
+        upload = kwargs.get("music")
+        if upload is not None:
+            try:
+                upload.file.close()
+            except Exception:
+                pass
+        if temp_music:
+            try:
+                os.remove(temp_music)
+            except Exception:
+                pass
+
+
+@app.post("/api/bench/make")
+def make_mp3(
+    topic: str = Form(""),
+    questions: str = Form("[]"),
+    speech: str = Form(...),
+    prompt_py: str = Form(""),
+    mix_py: str = Form(""),
+    model: str = Form(""),
+    voice_id: str = Form(...),
+    stability: float = Form(0.5),
+    style: float = Form(0.0),
+    boost: bool = Form(True),
+    tts_provider: str = Form("elevenlabs"),
+    experiment_id: int = Form(0),
+    voice_only: bool = Form(False),
+    balance_db: str = Form(""),
+    fade_in_s: str = Form(""),
+    fade_out_s: str = Form(""),
+    pause_ms: str = Form(""),
+    long_pause_ms: str = Form(""),
+    music_ref: str = Form(""),
+    music: UploadFile | None = File(default=None),
+):
+    # the upload only exists for the life of this request, so copy it to disk before queueing
+    temp_music = ""
+    saved_music = None
+    if music is not None and music.filename:
+        handle, temp_music = tempfile.mkstemp(prefix="upload_", dir=str(AUDIO_DIR))
+        os.close(handle)
+        save_upload(music, temp_music)
+        saved_music = SavedUpload(Path(music.filename).name, temp_music)
+
+    kwargs = {
+        "topic": topic, "questions": questions, "speech": speech, "prompt_py": prompt_py,
+        "mix_py": mix_py, "model": model, "voice_id": voice_id, "stability": stability,
+        "style": style, "boost": boost, "tts_provider": tts_provider,
+        "experiment_id": experiment_id, "voice_only": voice_only, "balance_db": balance_db,
+        "fade_in_s": fade_in_s, "fade_out_s": fade_out_s, "pause_ms": pause_ms,
+        "long_pause_ms": long_pause_ms, "music_ref": music_ref, "music": saved_music,
+    }
+    job_id = new_job()
+    MAKE_POOL.submit(run_make_job, job_id, kwargs, temp_music)
+    return {"job_id": job_id, "state": "queued"}
+
+
+@app.get("/api/bench/make/{job_id}")
+def make_status(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(404, "no such job, the server may have restarted")
+    return job
 
 
 @app.delete("/api/bench/experiments/{experiment_id}")
