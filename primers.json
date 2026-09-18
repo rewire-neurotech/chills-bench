@@ -1,0 +1,310 @@
+{
+ "version": "v1",
+ "tags": {
+  "[pause]": "1-2 s",
+  "[long pause]": "4-6 s"
+ },
+ "note": "One continuous block per primer, no blank lines. About 240-270 words each, roughly 3 minutes with the tags.",
+ "primers": [
+  {
+   "id": "S1",
+   "family": "Somatic",
+   "name": "Contact",
+   "subtitle": "Where the body meets what holds it.",
+   "text": "Sit or lie down, whichever is easier where you are. You can close your eyes, or you can leave them open and let them rest on one spot. [pause] This is about the places where your body touches something. Start with your feet. Feel the floor under them, or the bed, or whatever is holding them. [pause] Notice how much of each foot is touching, and how much of it touches nothing at all. [long pause] Move your attention up into your legs. Find the line where they press into the ground or the chair. Some of that line presses harder than the rest, and you can stay with the hardest part of it. [long pause] Move to your back. Feel where it meets whatever is behind it, starting low and working your way up. [pause] Let your shoulders come down a little as you find it. Your arms are resting somewhere too. Feel the underside of your hands, the part that is carrying them. [pause] Now your head. Something is holding it up, even if that something is only your own neck. [pause] Your skin stops reporting a steady pressure after a short while, which is why you forget your own clothes a minute after putting them on. So some of these places went quiet long before you looked for them. Go back and find one you had lost. [long pause] Now take all of it together. Those places make an outline of everything that is holding you, and you do nothing at all to keep it that way. Stay with that outline. [long pause]",
+   "words": 253,
+   "pauses": 5,
+   "long_pauses": 4
+  },
+  {
+   "id": "S2",
+   "family": "Somatic",
+   "name": "Weight",
+   "subtitle": "Letting the ground take it.",
+   "text": "Find a position you can stay in without any effort. Closing your eyes will make this easier, and you can do that now if you want to. [pause] This is about weight. Your body has a weight, and you carry it all day long without thinking about it once. Let yourself feel it now. Start with your arms. Let them go completely, so that whatever is underneath them takes all of it. [pause] Arms are heavier than people expect them to be. [long pause] Let your shoulders do the same thing. Let them come down as far as they want to go, and then a little further than that. [pause] Let your legs go in the same way, from the hip all the way down to the ankle. Feel how much they weigh once you stop holding them. [long pause] Move up to your head. Your head is one of the heaviest parts of you, and your neck has been carrying it since the moment you woke up. Let it be carried by something else now. [pause] Your jaw is holding some weight too. Let it hang open a little. Let your tongue rest wherever it falls. [pause] Every time you breathe out, a little more of your weight goes down into the ground. Let that happen a few times without counting it. [long pause] Feel your body get slightly lower each time. There is nothing here that needs holding up by you. The ground is doing all of it, the way it has been doing all of it your whole life. Stay heavy. [long pause]",
+   "words": 253,
+   "pauses": 5,
+   "long_pauses": 4
+  },
+  {
+   "id": "S3",
+   "family": "Somatic",
+   "name": "Release",
+   "subtitle": "Tense and let go, muscle by muscle.",
+   "text": "Sit or lie down and get comfortable. You can close your eyes. [pause] This is about tensing your muscles on purpose and then letting them go. Muscles release further after they have been squeezed than they do when you simply ask them to relax. Start with your hands. Make a fist with both of them and squeeze hard. Hold the squeeze while you count slowly to five inside your head. [long pause] Now open your hands and let go of everything at once. Feel what happens in your fingers just after you release them. [pause] Now your arms. Pull them in tight against your sides and press. Hold it. [long pause] Let go, and let your arms fall back to wherever they were resting. [pause] Now your shoulders. Lift them up toward your ears, as far as they will go. Hold them there. [long pause] Drop them. [pause] Now your face. Squeeze your eyes shut and pull your whole face in toward the middle of it. Hold it. [long pause] Let it all fall open. [pause] Now your legs. Straighten them and point your toes away from you until you feel it in the calf. Hold it. [long pause] Let them fall. [pause] Your whole body has been through that now, and every part you squeezed has landed lower than where it started. Stay in it. Notice how your body feels once you have stopped asking it for anything at all. [long pause]",
+   "words": 225,
+   "pauses": 6,
+   "long_pauses": 6
+  },
+  {
+   "id": "S4",
+   "family": "Somatic",
+   "name": "Heaviness",
+   "subtitle": "Autogenic formulas, said once and waited for.",
+   "text": "Lie down or sit back, whichever position you can hold for a while. Let your eyes close if that feels right. [pause] This is an old exercise, and it works by telling your body something true and then waiting for it to become more true. Begin with your right arm. Your right arm is heavy. [pause] Say it once inside your head and then wait to feel it arrive. [long pause] The heaviness starts up in the shoulder and moves down through the elbow and into the hand. Give it time to travel. [long pause] Now the left arm. That one grows heavy as well, from the top of the shoulder down to the fingertips. Wait for it the same way. [long pause] Both of your arms are heavy now, and they are resting on something that can hold them. [pause] Move down to your right leg. It grows heavy from the hip to the knee, and then from the knee down to the foot. Let it sink. [long pause] The left leg follows it. Take your time. [long pause] Both legs are heavy and both of them are still. Now your back. It is heavy along its whole length, and it is being carried. Your shoulders are heavy and low. Your head is heavy where it rests. [pause] Now take your whole body at once. It is heavy, it is quiet, and it is doing nothing. Your breathing carries on without any help from you. Stay inside that heaviness. [long pause]",
+   "words": 236,
+   "pauses": 4,
+   "long_pauses": 6
+  },
+  {
+   "id": "S5",
+   "family": "Somatic",
+   "name": "Scan",
+   "subtitle": "One pass, bottom to top.",
+   "text": "Settle into whatever position you are already in. Your eyes can close, or they can stay open and unfocused. [pause] This is a single pass through the body, from the bottom to the top, one part at a time. Start at your toes. Whatever is there, feel it, and take longer than feels necessary. [long pause] Move into the soles of your feet, then the heels, then the ankles. [pause] Take your calves and your shins together. Move up into your knees, and then into your thighs. [pause] Feel your hips and the whole seat of your body. [pause] Move into your lower back, and go slowly there, because many people hold something in that place. [long pause] Then the middle of your back, then the top of it, then out across the shoulders. [pause] Move down each arm to the elbow, then to the wrist, then into the hands and out through the fingers. [long pause] Come back up into your chest. Feel it rise and fall on its own. Feel your stomach doing the same thing a moment later. [pause] Move into your throat. Then your jaw, then your mouth, then your tongue. [pause] Feel your cheeks. Feel around your eyes, where people hold far more than they realise. [long pause] Move across your forehead and finish at the top of your head. Some of those places answered you clearly and some stayed quiet, and both of those are ordinary. Go back to whichever part called for you most. Stay there. [long pause]",
+   "words": 238,
+   "pauses": 7,
+   "long_pauses": 5
+  },
+  {
+   "id": "S6",
+   "family": "Somatic",
+   "name": "Edges",
+   "subtitle": "The outline where you stop.",
+   "text": "Get into a position you can forget about. Closing your eyes helps here, though you can leave them open. [pause] This is about the edge of your body, the place where you stop and everything else starts. Begin with your hands. Without moving them at all, find the outline of them. [pause] Feel the shape of each finger. Feel the line that runs around the palm. Feel the point at the end of each fingertip where you end. [long pause] Move to your feet and do the same thing. Find the edge of them, all the way around, including the parts pressed against something. [long pause] Now your face. Feel the line where your lips meet. Feel the edge of each eyelid. Feel the shape of your ears standing away from the sides of your head. [long pause] Move down to your shoulders and find where they end. Follow the edge down your arms and back up again. [pause] Now take your whole body at once. Somewhere out at the surface of you there is a boundary, and everything inside it is you. Trace it if you can, or hold the sense of the whole thing. [pause] Your brain builds that boundary continuously, from touch and from position and from sight, and it rebuilds it every moment you are awake. Nothing about it is fixed. Stay with it. Feel the size of yourself from the inside. [long pause]",
+   "words": 226,
+   "pauses": 4,
+   "long_pauses": 4
+  },
+  {
+   "id": "S7",
+   "family": "Somatic",
+   "name": "Hands",
+   "subtitle": "The most detailed map you have.",
+   "text": "Sit however you like, with your hands resting somewhere they can stay. Let your eyes close. [pause] This is about your hands, and about how much of you there is inside them. Put all of your attention into your right hand. Leave it exactly where it is. [pause] Find the palm first. [long pause] Then go through each finger in turn and see what is actually there when you look. There may be a pulse somewhere in it. There may be a faint buzzing along the fingers. There may be almost nothing at all, and that is fine as well. [long pause] Move to the back of the hand, which usually feels dimmer than the palm does. Then find the wrist. [pause] Now go through the left hand in the same order, and take your time with it. [long pause] Notice whether the two hands feel the same as each other. Most people find that one of them is clearer than the other. [pause] Now hold both hands in your attention together. From the inside they feel far larger than they look from the outside. Your brain gives your hands more room than their size deserves, more than it gives your back or your legs, and it has been that way since before you could speak. So this is a place where there is a great deal to find. Go looking once more, slowly, through both hands at once. Stay there. [long pause]",
+   "words": 231,
+   "pauses": 4,
+   "long_pauses": 4
+  },
+  {
+   "id": "S8",
+   "family": "Somatic",
+   "name": "Stillness",
+   "subtitle": "Movement made smaller until it stops.",
+   "text": "Sit or stand, whichever you are already doing. Keep your eyes open for now. [pause] This one begins with movement and it ends without any. Turn your head slowly to one side, as far as it will go, and then bring it back to the middle. [pause] Do the same on the other side. Let it come back. [pause] Roll your shoulders backward two or three times, slowly enough that you feel every part of the circle. [long pause] Open your hands wide and stretch the fingers apart, then let them close on their own. [pause] Lift your chest a little and let it settle. [pause] Now rock a small amount from side to side, just enough to find where your balance actually sits. [long pause] Make that rocking smaller. Make it smaller again. Keep going until it has almost disappeared and you are only suggesting it. [long pause] Now stop moving altogether. [long pause] Your body carries on making tiny corrections even now, and you can feel them if you look for them. Something in you is holding you upright without being asked. [pause] Let your eyes close. Everything that was moving a moment ago has come to rest. This kind of stillness is rare in a day. Stay inside it and let it last. [long pause]",
+   "words": 202,
+   "pauses": 6,
+   "long_pauses": 5
+  },
+  {
+   "id": "S9",
+   "family": "Somatic",
+   "name": "Face",
+   "subtitle": "The part that works all day.",
+   "text": "Settle into place and let your eyes close. [pause] This is about your face, which works all day long and almost never gets asked to stop. Start with your jaw. Let your teeth come apart so they are no longer touching each other. [pause] Most people are surprised by how much moves when they do that. [long pause] Let your tongue go soft and let it rest on the floor of your mouth. [pause] Move up to your lips and let them part very slightly. [pause] Now go to the muscles around your eyes. Let them go without pressing your eyelids together. Feel the small ring of tension around each eye loosen and spread out. [long pause] Move to your forehead. Let it be wide and flat. Let the space between your eyebrows open up. [long pause] Feel your scalp let go behind your hairline, and then further back, over the top of your head. [pause] Feel your ears and the sides of your skull. Come down into your throat and let the front of your neck soften. [pause] There are more muscles in a human face than in almost any other part of the body, and nearly all of them were doing something a minute ago. They are quiet now. This is the face you have when there is nobody watching you. Stay in it. [long pause]",
+   "words": 214,
+   "pauses": 6,
+   "long_pauses": 4
+  },
+  {
+   "id": "S10",
+   "family": "Somatic",
+   "name": "Inside",
+   "subtitle": "The volume you are built around.",
+   "text": "Lie back or sit, and close your eyes if you can. [pause] This is about the inside of you, the part with room in it. Start at your throat. There is an open space there, and air passes through it every few seconds without you arranging any of it. [long pause] Follow that space down into your chest. Your chest is mostly hollow, and it changes shape each time you breathe. Feel it widen and then narrow again. Do nothing to help it along. [long pause] Somewhere in there your heart is beating, and you may find it or you may not. [pause] Follow the space further down into your stomach, which moves as well, a little later and a little more slowly than the chest. [long pause] Feel how deep your body goes from the front to the back. Feel how wide it is from one side to the other. Feel how far down it goes into your hips. [long pause] There is a whole volume inside you, and every part of it has been working quietly for as long as you have been alive, through every day you remember and every one you do not. None of it has ever asked you for instructions. Rest your attention somewhere in the middle of that space, behind your ribs. Stay there. [long pause]",
+   "words": 211,
+   "pauses": 2,
+   "long_pauses": 5
+  },
+  {
+   "id": "B1",
+   "family": "Breath",
+   "name": "Counting",
+   "subtitle": "Count the out-breaths, lose the count, begin again.",
+   "text": "Sit in a way you can keep for a few minutes. Let your eyes close if that helps you. [pause] This is about counting your breaths, which is simpler than it sounds and harder than it sounds. Breathe the way you normally breathe. Change nothing about it. [pause] Each time you breathe out, count that breath. Start at one. [long pause] Go up to ten, one number for each out-breath, and then start again at one. [long pause] At some point you will notice that you have stopped counting and gone somewhere else. That happens to everyone who has ever tried this, including people who have done it for forty years. [pause] When you notice it, go back to one without any comment. [long pause] The noticing is the part that matters. The counting is only there to give you something to lose. [pause] Keep going. Breathe out, count, breathe out, count. [long pause] If you find yourself at fourteen, you have drifted, so start again at one. [pause] If you find you have forgotten where you were, start again at one. [long pause] Nobody arrives at ten cleanly for very long. Stay with it anyway. [long pause]",
+   "words": 181,
+   "pauses": 5,
+   "long_pauses": 6
+  },
+  {
+   "id": "B2",
+   "family": "Breath",
+   "name": "The longer exhale",
+   "subtitle": "Letting the out-breath run past the in-breath.",
+   "text": "Sit or lie down and let your body settle where it is. Your eyes can close. [pause] This is about the out-breath, and about letting it run longer than the in-breath. Begin by breathing normally and watching it for a while. [long pause] Notice which is longer at the moment, the breath going in or the breath coming out. [pause] Now let the next out-breath go on a little longer than it wants to. Let it empty slowly, all the way to the end. [long pause] Then let the in-breath come in on its own. Do not pull it in. [pause] Again, let the out-breath run long. [long pause] The in-breath will look after itself. [pause] Your body reads a long out-breath as a signal that nothing is wrong, and it slows your heart to match. That is happening now, without you doing anything about it. [long pause] Keep letting each out-breath be the longer of the two. Stay with a few more of them. [long pause] Now stop managing the breath and let it go back to whatever it wants. Watch what it does. Stay there. [long pause]",
+   "words": 173,
+   "pauses": 4,
+   "long_pauses": 6
+  },
+  {
+   "id": "B3",
+   "family": "Breath",
+   "name": "One point",
+   "subtitle": "A single place where the breath is felt.",
+   "text": "Settle in and let your eyes close. [pause] This is about finding one place in your body where you can feel the breath, and staying there. Take a few breaths and look for it. [long pause] It might be at the edge of your nostrils, where the air arrives and leaves. It might be at the back of your throat. It might be in your chest, or lower down in your belly. [pause] Choose whichever one is clearest. [long pause] Now keep your attention on that single place and let everything else in your body be. [long pause] The breath arrives there and then it leaves there. Watch it come and go without describing it to yourself. [long pause] Your attention will slide off. When you notice that it has, bring it back to the place you chose. [pause] Bring it back as many times as it takes, without any impatience about it. [long pause] The bringing back is the exercise, and every return counts. [long pause] Stay at that one point. [long pause]",
+   "words": 157,
+   "pauses": 3,
+   "long_pauses": 7
+  },
+  {
+   "id": "B4",
+   "family": "Breath",
+   "name": "The turn",
+   "subtitle": "The still moment between one breath and the next.",
+   "text": "Get comfortable and let your eyes close if you want to. [pause] This is about the small still moments inside your breathing, which most people go their whole lives without noticing. Breathe normally for a few breaths and watch them. [long pause] At the top of an in-breath there is a moment when nothing is moving, just before the out-breath starts. Find it. [long pause] At the bottom of an out-breath there is another one, a little longer, before the next breath begins. Find that one too. [long pause] Those two moments are already there in every breath you take. You are only looking at them now. [pause] Stay with the turn at the bottom, the one after everything has emptied. Let it be as long as it wants to be. [long pause] Do not stretch it. Do not cut it short. [pause] Watch several breaths and find that stillness at the bottom of each one. [long pause] Something in you is completely quiet in those moments, over and over, all day long. Stay there and keep finding it. [long pause]",
+   "words": 166,
+   "pauses": 3,
+   "long_pauses": 6
+  },
+  {
+   "id": "B5",
+   "family": "Breath",
+   "name": "Breathing into a place",
+   "subtitle": "Sending the breath where the body is tight.",
+   "text": "Sit or lie down. Let your eyes close. [pause] This is about sending your breath toward a part of your body, which is a way of putting your attention there. Take a moment and find somewhere in you that feels tight, or held, or simply closed. [long pause] It might be your shoulders. It might be your jaw or your stomach or your lower back. Take whichever one is loudest. [pause] Now breathe in, and as you do, imagine the breath going toward that place. [long pause] The air does not really go there, and that changes nothing about how this works. Your attention goes there, and the muscles follow your attention. [pause] Breathe in toward it again. [long pause] As you breathe out, let that place go a little softer. [long pause] Again, in toward it, and out with something released. [long pause] Do it a few more times on your own. [long pause] If it will not soften, leave it alone and keep breathing toward it anyway. Some things loosen only when you stop demanding it. Stay there. [long pause]",
+   "words": 165,
+   "pauses": 3,
+   "long_pauses": 7
+  },
+  {
+   "id": "A1",
+   "family": "Attention",
+   "name": "Noting",
+   "subtitle": "Naming what arrives, one word each.",
+   "text": "Sit in a position you can hold. Let your eyes close. [pause] This is about naming what goes through your mind, quietly, as it goes. Give each thing one word only. [pause] If a thought arrives, say the word thinking, inside your head. [long pause] If a sound arrives, say hearing. If a feeling in your body arrives, say feeling. [pause] One word, and then let it go without following it anywhere. [long pause] Wait for the next thing and name that one too. [long pause] The words are small on purpose. They are just big enough to catch something and too small to hold it. [pause] Keep going. Something will arrive, and you will name it, and it will pass. [long pause] You may find that naming a thought makes it thinner, and that is the whole point of doing it. [long pause] Carry on for a while on your own. Name whatever comes. [long pause] Stay with it and let the words stay small. [long pause]",
+   "words": 150,
+   "pauses": 4,
+   "long_pauses": 7
+  },
+  {
+   "id": "A2",
+   "family": "Attention",
+   "name": "Open",
+   "subtitle": "Choosing nothing.",
+   "text": "Get comfortable. Your eyes can close, or they can stay half open and unfocused. [pause] This is about choosing nothing at all and letting things come to you. Every other exercise gives you a place to put your attention. This one takes that away. [pause] Let your attention rest wide, without landing anywhere. [long pause] Something will come. It might be a sound. It might be a thought or a feeling in your body. Let it come and let it go. [long pause] Do not go looking for the next thing. Wait for it. [long pause] If your attention lands on something and stays there, let it stay, and when it leaves, let it leave. [pause] Nothing here is a distraction. Everything that arrives is the exercise. [long pause] This can feel like doing nothing, and it is close to that, though something in you stays awake through it. [long pause] Keep your attention open and wide. Stay there and let it all pass through. [long pause]",
+   "words": 152,
+   "pauses": 3,
+   "long_pauses": 6
+  },
+  {
+   "id": "A3",
+   "family": "Attention",
+   "name": "Narrow and wide",
+   "subtitle": "Attention as a lens you can move.",
+   "text": "Settle in and close your eyes. [pause] This is about how wide or narrow your attention can be, which is something you can change on purpose. Start narrow. Put all of your attention on one small thing, the tip of one finger. Nothing else. [long pause] Hold it there and let the rest of your body fall away. [long pause] Now widen it. Take in your whole hand, then your whole arm. [pause] Keep widening. Take in your whole body at once, all of it held together in a single view. [long pause] Now widen further, past the edge of your body, into the space around you, as far out as it will go. [long pause] Now come back in. Narrow it down to your body. [pause] Narrower, to one hand. [pause] Narrower again, to the tip of one finger. [long pause] Attention has a width, and most people never touch the dial. You just moved it in both directions. [pause] Now let it settle wherever it wants to sit. Stay there. [long pause]",
+   "words": 157,
+   "pauses": 5,
+   "long_pauses": 6
+  },
+  {
+   "id": "A4",
+   "family": "Attention",
+   "name": "The one thing",
+   "subtitle": "Returning, and counting the returns.",
+   "text": "Sit and let your eyes close. [pause] This is about staying with one thing and noticing every time you leave it. Choose something small to hold your attention. The feeling in your hands will do. [pause] Put your attention there and keep it there. [long pause] At some point it will go somewhere else. When you notice that it has, bring it back to your hands, and count that return as one. [long pause] Keep going. Attention leaves, you notice, you bring it back, and the count goes up. [long pause] Every return counts as a success rather than a failure. The mind wandering is what minds do, and the noticing is the thing you are building. [pause] Carry on for a while. Hold your hands, lose them, find them, count. [long pause] Do not be pleased or annoyed by the number. Just keep it. [long pause] Stay with your hands and keep returning. [long pause]",
+   "words": 141,
+   "pauses": 3,
+   "long_pauses": 6
+  },
+  {
+   "id": "F1",
+   "family": "Affect",
+   "name": "Sending",
+   "subtitle": "A wish, passed outward.",
+   "text": "Sit comfortably and let your eyes close. [pause] This is about wishing somebody well on purpose, which is a thing you can practise the way you would practise anything else. Start with someone who is easy. Bring to mind a person you love without complication. [long pause] Picture their face, or just hold the sense of them. [pause] Now wish them one plain thing. Let them be well. Let them be at ease. [long pause] Say it once and wait to feel whether anything moves in you. [long pause] Now bring to mind someone you barely know. Somebody you see and never speak to. [pause] Wish them the same thing. Let them be well. Let them be at ease. [long pause] It may feel flat, and it usually does at first. Do it anyway. [pause] Now widen it out to everybody in the building you are in, and then everybody on your street. [long pause] Let all of them be well. Let all of them be at ease. [long pause] Now turn it around and send the same wish to yourself. This one is harder for most people. [long pause] Stay with whichever direction was hardest. [long pause]",
+   "words": 178,
+   "pauses": 4,
+   "long_pauses": 8
+  },
+  {
+   "id": "F2",
+   "family": "Affect",
+   "name": "The circle",
+   "subtitle": "Outward to everyone, then back through everyone.",
+   "text": "Settle in and close your eyes. [pause] This is about how many people there are, and about where you sit among them. Start with the people you know. Bring them to mind, however many arrive. [long pause] Now widen it out past them, to everyone in the place where you live. All of them are somewhere right now, doing something ordinary. [long pause] Widen it further, to the whole country, and then to the whole world. Everyone alive at this moment. [long pause] Some of them are having the best day of their lives and some are having the worst, and all of that is happening at the same time. [pause] Now go backward instead of outward. Their parents, and their parents, and back through every generation that has ever lived. [long pause] Every one of them woke up in a body like yours. [pause] Whatever is on your mind, somebody in that crowd has carried it, and carried it through. [long pause] Most of them were never written down, and it happened to them anyway. Stay with the size of it. [long pause]",
+   "words": 169,
+   "pauses": 3,
+   "long_pauses": 6
+  },
+  {
+   "id": "F3",
+   "family": "Affect",
+   "name": "One thing",
+   "subtitle": "Gratitude held on a single object.",
+   "text": "Sit and let your eyes close. [pause] This is about being grateful for one thing rather than a list of things, because a list moves too fast to feel anything. Choose one thing you are glad exists. It can be small. [long pause] Hold it in mind and stay with it. [long pause] Now look at it more closely. Think about where it came from, and about how easily it might not have been there. [long pause] Think about who was involved in it reaching you, including people you never met. [long pause] Almost nothing arrives in a life without a long chain of hands behind it. [pause] Follow that chain back as far as you can. [long pause] Now come back to the thing itself and let yourself be glad about it for a moment longer. [long pause] One thing, held long enough to feel, does more than twenty things counted quickly. Stay with it. [long pause]",
+   "words": 142,
+   "pauses": 2,
+   "long_pauses": 7
+  },
+  {
+   "id": "F4",
+   "family": "Affect",
+   "name": "Toward yourself",
+   "subtitle": "The wish turned inward.",
+   "text": "Sit or lie down and let your eyes close. [pause] This is about turning kindness toward yourself, which most people find surprisingly difficult. Start by bringing to mind somebody you care about who is having a hard time. [long pause] Notice what you would want for them. Notice that you would not need them to earn it. [long pause] Now bring yourself to mind instead. Picture yourself the way somebody who loves you would see you. [long pause] Offer yourself the same plain thing you would offer them. Let this person be well. Let this person be at ease. [long pause] Something may push back against that, and if it does, let it be there without arguing with it. [pause] Say it once more anyway. [long pause] You have been with yourself for every single thing that has happened to you, which is more than anybody else can say. [pause] Some warmth is owed for that alone. Stay with it. [long pause]",
+   "words": 147,
+   "pauses": 3,
+   "long_pauses": 6
+  },
+  {
+   "id": "N1",
+   "family": "Induction",
+   "name": "Descent",
+   "subtitle": "Counting down.",
+   "text": "Sit back or lie down and let your eyes close. [pause] This is a count downward, and each number takes you a little further in. Begin at ten. [long pause] Nine. Let your shoulders drop as the number passes. [long pause] Eight. Your arms grow heavier. [long pause] Seven. Your breathing slows without you asking it to. [long pause] Six. Let your jaw come loose. [long pause] Five. You are halfway down now, and there is no hurry about the rest. [long pause] Four. Your legs go heavy. [long pause] Three. The room around you matters less than it did. [long pause] Two. Almost everything has gone quiet. [long pause] One. [long pause] You are as far down as this count goes. Stay here for a moment before anything else begins. [long pause]",
+   "words": 110,
+   "pauses": 1,
+   "long_pauses": 11
+  },
+  {
+   "id": "N2",
+   "family": "Induction",
+   "name": "Toward",
+   "subtitle": "Walking, without arriving.",
+   "text": "Settle in and let your eyes close. [pause] This is a walk toward somewhere, and you will not get there during this part. Begin by standing, in your mind, at the start of a way that leads somewhere you have not seen yet. [long pause] Take the first step. There is no hurry in it. [pause] Take another. [long pause] With every step, something you were carrying gets set down behind you. You do not need to know what. [long pause] Keep walking. The way ahead is clear and it keeps going. [long pause] Somewhere in front of you there is a place waiting, and you will arrive there soon. [pause] Keep walking toward it. [long pause] Whatever was on your mind when you sat down is now some distance behind you. [long pause] A few more steps. You are close now. Stay walking. [long pause]",
+   "words": 129,
+   "pauses": 3,
+   "long_pauses": 7
+  },
+  {
+   "id": "N3",
+   "family": "Induction",
+   "name": "The room recedes",
+   "subtitle": "Everything around you moving away.",
+   "text": "Sit or lie down and close your eyes. [pause] This is about letting your surroundings move away from you, which is something attention can do on its own once it is allowed to. Begin with the room you are in. Hold a sense of its walls and its size. [long pause] Now let it get further away. Let the walls move back from you. [long pause] The room is still there, and it matters less each moment. [pause] Let whatever is beyond the room go quiet too. Everything past those walls has nothing to do with the next few minutes. [long pause] Now let the surface underneath you become vague. You know it is there, and you no longer need to keep track of it. [long pause] What is left is a small space with you in it. [long pause] Everything else has moved off to a comfortable distance and will still be there afterwards. [pause] Stay in that small space. [long pause]",
+   "words": 148,
+   "pauses": 3,
+   "long_pauses": 6
+  },
+  {
+   "id": "N4",
+   "family": "Induction",
+   "name": "Heavy eyes",
+   "subtitle": "Fixation and the eyelids closing on their own.",
+   "text": "Sit in a position you can hold, and keep your eyes open for now. [pause] This is about your eyes, and about how quickly they tire when you give them one thing to do. Find a single spot in front of you and rest your eyes on it. Any spot will do. [long pause] Hold it. Let everything around that spot stay blurred. [long pause] Your eyes will start to feel heavy quite soon. That is only what eyes do when they are held still. [pause] Keep looking at the spot and let the heaviness build. [long pause] Your eyelids are getting harder to keep open. [long pause] Let them come down whenever they want to. Do not hold them up and do not force them shut. [long pause] When they close, let them stay closed. [long pause] Behind them, everything is dark and easy. That heaviness is still spreading, out of your eyes and down through the rest of your face. Stay with it. [long pause]",
+   "words": 151,
+   "pauses": 2,
+   "long_pauses": 7
+  },
+  {
+   "id": "C1",
+   "family": "Cognitive",
+   "name": "Setting down",
+   "subtitle": "Naming what can wait.",
+   "text": "Sit and let your eyes close. [pause] This is about the things you are carrying in your head right now, and about putting them somewhere for a few minutes. Let the first one arrive. There is usually something waiting at the front. [long pause] Look at it plainly and ask whether it needs you in the next few minutes. Almost nothing does. [pause] Set it down. Imagine putting it on the ground beside you, where it stays. [long pause] Let the next one come. [long pause] Look at that one and set it down as well. [long pause] Keep going until the ones arriving are smaller than the ones before them. [long pause] Everything you have set down is still there. None of it has been solved and none of it has been lost. [pause] It is only waiting, and it can wait. [long pause] Now notice how much room is left once those things are on the ground. Stay in that room. [long pause]",
+   "words": 148,
+   "pauses": 3,
+   "long_pauses": 7
+  },
+  {
+   "id": "C2",
+   "family": "Cognitive",
+   "name": "The question",
+   "subtitle": "Holding what brought you here.",
+   "text": "Settle in and close your eyes. [pause] This is about the thing that brought you here, and about holding it without working on it. Let it come to mind. It might be a question, or a decision, or a feeling you cannot name yet. [long pause] Whatever arrives first is the right one. [pause] Now hold it, and do not try to solve it. [long pause] Notice how quickly your mind starts working on it anyway. That is what it does. Let it stop. [long pause] Just keep the thing in view, the way you would hold something in your hands and look at it. [long pause] Notice where it sits in your body while you hold it. Many things arrive in the chest or the stomach before they arrive in words. [long pause] Stay with it there. [long pause] You do not have to do anything with this for now. Carrying it in view is enough to begin with. Stay with it. [long pause]",
+   "words": 149,
+   "pauses": 2,
+   "long_pauses": 7
+  },
+  {
+   "id": "C3",
+   "family": "Cognitive",
+   "name": "One sentence",
+   "subtitle": "An intention, said once.",
+   "text": "Sit comfortably and let your eyes close. [pause] This is about saying one thing to yourself and then leaving it alone. Take a moment and find what you want from the next few minutes. [long pause] Keep it simple. It might be to be honest with yourself, or to rest, or to stop pushing at something for a while. [long pause] Put it into one short sentence. Build the sentence now. [long pause] Say it once inside your head. [long pause] Now let it go and do not repeat it. Something in you heard it, and saying it again would only be a way of checking. [long pause] Sit with the quiet that comes after it. [long pause] The sentence will do its work whether or not you keep hold of it. Stay here. [long pause]",
+   "words": 121,
+   "pauses": 1,
+   "long_pauses": 7
+  }
+ ]
+}
