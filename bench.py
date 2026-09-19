@@ -2331,7 +2331,9 @@ def run_make(
     model="",
     voice_id="",
     stability=0.5,
+    similarity=0.7,
     style=0.0,
+    speed=1.0,
     boost=True,
     tts_provider="elevenlabs",
     experiment_id=0,
@@ -2424,9 +2426,12 @@ def run_make(
         source = mix_source_for(mix_py, music_path)
         log.append(f"mix source {source}")
 
-        voice_settings = {"stability": stability, "similarity_boost": 0.7, "style": style, "use_speaker_boost": boost}
-        log.append(f"voice {voice_id}, stability {stability}, style {style}, "
-                   f"boost {'on' if boost else 'off'}")
+        voice_settings = {"stability": stability, "similarity_boost": similarity,
+                          "style": style, "use_speaker_boost": boost}
+        if abs(float(speed) - 1.0) > 0.001:
+            voice_settings["speed"] = float(speed)
+        log.append(f"voice {voice_id}, stability {stability}, similarity {similarity}, "
+                   f"style {style}, speed {speed}, boost {'on' if boost else 'off'}")
 
         voice_file = f"{target_id}_voice.wav"
         synth(speech, voice_id, voice_settings, str(AUDIO_DIR / voice_file),
@@ -2536,7 +2541,9 @@ def make_mp3(
     model: str = Form(""),
     voice_id: str = Form(...),
     stability: float = Form(0.5),
+    similarity: float = Form(0.7),
     style: float = Form(0.0),
+    speed: float = Form(1.0),
     boost: bool = Form(True),
     tts_provider: str = Form("elevenlabs"),
     experiment_id: int = Form(0),
@@ -2564,7 +2571,7 @@ def make_mp3(
     kwargs = {
         "topic": topic, "questions": questions, "speech": speech, "prompt_py": prompt_py,
         "mix_py": mix_py, "model": model, "voice_id": voice_id, "stability": stability,
-        "style": style, "boost": boost, "tts_provider": tts_provider,
+        "similarity": similarity, "style": style, "speed": speed, "boost": boost, "tts_provider": tts_provider,
         "experiment_id": experiment_id, "voice_only": voice_only, "balance_db": balance_db,
         "fade_in_s": fade_in_s, "fade_out_s": fade_out_s, "pause_ms": pause_ms,
         "long_pause_ms": long_pause_ms, "music_ref": music_ref,
