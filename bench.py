@@ -539,6 +539,10 @@ def init_db():
     add_column(connection, "experiments", "status", "text default 'ok'")
     add_column(connection, "experiments", "experience_id", "integer")
     add_column(connection, "experiments", "version", "integer default 1")
+    add_column(connection, "experiments", "primer_id", "text default ''")
+    add_column(connection, "experiments", "primer_s", "real default 0")
+    add_column(connection, "experiments", "after_primer_s", "real default 0")
+    add_column(connection, "experiments", "music_track_id", "integer default 0")
     connection.execute("""
         create table if not exists experiences (
             id integer primary key autoincrement,
@@ -1917,6 +1921,10 @@ def experiment_row(row):
         "status": row["status"] or "ok",
         "experience_id": row["experience_id"] or 0,
         "version": row["version"] or 1,
+        "primer_id": row["primer_id"] or "",
+        "primer_s": row["primer_s"] or 0,
+        "after_primer_s": row["after_primer_s"] or 0,
+        "music_track_id": row["music_track_id"] or 0,
     }
 
 
@@ -2234,6 +2242,47 @@ def save_failed_run(connection, experiment_id, log):
         pass
 
 
+DEFAULT_AFTER_PRIMER_S = 4.0
+
+
+def join_primer_and_speech(primer_path, speech_path, gap_s, out_path, log):
+    """Primer, then silence, then speech, as one voice track.
+
+    Doing it here rather than inside mix() means every pasted mix file keeps
+    working, it just receives a longer voice track than before.
+
+    The joined file keeps the speech file's own channels, rate and sample width,
+    so the mix receives exactly the format it has always received. The primer is
+    converted to match the speech, never the other way round.
+    """
+    speech = load_audio(speech_path)
+    if not primer_path:
+        return str(speech_path), 0.0, len(speech) / 1000.0
+
+    primer = load_audio(primer_path)
+    if primer.frame_rate != speech.frame_rate:
+        primer = primer.set_frame_rate(speech.frame_rate)
+    if primer.channels != speech.channels:
+        primer = primer.set_channels(speech.channels)
+    if primer.sample_width != speech.sample_width:
+        primer = primer.set_sample_width(speech.sample_width)
+
+    gap_ms = max(0, int(float(gap_s) * 1000))
+    gap = AudioSegment.silent(duration=gap_ms, frame_rate=speech.frame_rate)
+    gap = gap.set_channels(speech.channels).set_sample_width(speech.sample_width)
+
+    joined = primer + gap + speech
+    joined.export(out_path, format="wav")
+
+    primer_sec = len(primer) / 1000.0
+    total_sec = len(joined) / 1000.0
+    log.append(f"voice track joined: primer {fmt_seconds(primer_sec)} + "
+               f"{gap_ms / 1000:.1f}s gap + speech {fmt_seconds(len(speech) / 1000.0)} "
+               f"= {fmt_seconds(total_sec)}, "
+               f"{joined.channels}ch {joined.frame_rate}Hz, same as the speech file")
+    return str(out_path), primer_sec, total_sec
+
+
 def run_make(
     topic="",
     questions="[]",
@@ -2255,6 +2304,8 @@ def run_make(
     long_pause_ms="",
     music_ref="",
     music_track_id=0,
+    primer_id="",
+    after_primer_s="",
     music=None,
 ):
     tts_provider = tts_provider.strip() or "elevenlabs"
@@ -2344,6 +2395,23 @@ def run_make(
         print(f"experiment {target_id} voice saved")
         describe_audio(AUDIO_DIR / voice_file, "voice", log)
 
+        primer_seconds = 0.0
+        gap_seconds = optional_float(after_primer_s)
+        if gap_seconds is None:
+            gap_seconds = DEFAULT_AFTER_PRIMER_S
+        mix_voice_path = str(AUDIO_DIR / voice_file)
+        if primer_id.strip() and not voice_only:
+            primer_path, primer_seconds = primer_audio_path(
+                connection, primer_id.strip(), voice_id, voice_settings, tts_provider, log
+            )
+            joined_file = f"{target_id}_joined.wav"
+            mix_voice_path, primer_seconds, _total = join_primer_and_speech(
+                primer_path, AUDIO_DIR / voice_file, gap_seconds,
+                AUDIO_DIR / joined_file, log
+            )
+        elif primer_id.strip() and voice_only:
+            log.append("voice only, primer not added")
+
         if voice_only:
             mix_file = ""
             log.append("voice only, no mix run")
@@ -2351,7 +2419,7 @@ def run_make(
             if music_path:
                 describe_audio(music_path, "music", log)
             mix_file = f"{target_id}_mix.mp3"
-            run_mix(mix_function, AUDIO_DIR / voice_file, music_path, AUDIO_DIR / mix_file, settings, log)
+            run_mix(mix_function, mix_voice_path, music_path, AUDIO_DIR / mix_file, settings, log)
             print(f"experiment {target_id} mix saved, {source}")
             describe_audio(AUDIO_DIR / mix_file, "output", log)
 
@@ -2365,11 +2433,14 @@ def run_make(
             "voice_id = ?, stability = ?, style = ?, boost = ?, speech_text = ?, music_filename = ?, "
             "music_file = ?, voice_file = ?, mix_file = ?, mix_source = ?, tts_provider = ?, "
             "run_log = ?, word_count = ?, balance_db = ?, fade_in_s = ?, fade_out_s = ?, "
-            "pause_ms = ?, long_pause_ms = ?, title = ?, status = 'ok' where id = ?",
+            "pause_ms = ?, long_pause_ms = ?, title = ?, primer_id = ?, primer_s = ?, "
+            "after_primer_s = ?, music_track_id = ?, status = 'ok' where id = ?",
             (topic.strip(), json.dumps(parsed_questions), prompt_py, mix_py, model, voice_id,
              stability, style, int(boost), speech, music_filename, music_rel, voice_file, mix_file,
              source, tts_provider, "\n".join(log), len(speech.split()), settings["balance_db"],
-             settings["fade_in_s"], settings["fade_out_s"], pause, long_pause, title, target_id),
+             settings["fade_in_s"], settings["fade_out_s"], pause, long_pause, title,
+             primer_id.strip() if not voice_only else "", primer_seconds,
+             gap_seconds if primer_seconds else 0, music_track_id, target_id),
         )
         connection.commit()
         row = fetch_experiment(connection, target_id)
@@ -2438,6 +2509,8 @@ def make_mp3(
     long_pause_ms: str = Form(""),
     music_ref: str = Form(""),
     music_track_id: int = Form(0),
+    primer_id: str = Form(""),
+    after_primer_s: str = Form(""),
     music: UploadFile | None = File(default=None),
 ):
     # the upload only exists for the life of this request, so copy it to disk before queueing
@@ -2456,7 +2529,8 @@ def make_mp3(
         "experiment_id": experiment_id, "voice_only": voice_only, "balance_db": balance_db,
         "fade_in_s": fade_in_s, "fade_out_s": fade_out_s, "pause_ms": pause_ms,
         "long_pause_ms": long_pause_ms, "music_ref": music_ref,
-        "music_track_id": music_track_id, "music": saved_music,
+        "music_track_id": music_track_id, "primer_id": primer_id,
+        "after_primer_s": after_primer_s, "music": saved_music,
     }
     job_id = new_job()
     MAKE_POOL.submit(run_make_job, job_id, kwargs, temp_music)
