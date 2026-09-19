@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bench.py bench.html primers.json ./
+COPY MusicDB ./MusicDB
 
 ENV BENCH_DATA_DIR=/data/bench
 
