@@ -4,6 +4,7 @@ import io
 import json
 import math
 import os
+import random
 import re
 import shutil
 import sqlite3
@@ -36,11 +37,12 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 DATA_DIR = Path(os.getenv("BENCH_DATA_DIR", "./data"))
 AUDIO_DIR = DATA_DIR / "audio"
 PRIMER_DIR = DATA_DIR / "primers"
+PUBLISHED_DIR = DATA_DIR / "published"
 MUSIC_DIR = DATA_DIR / "music"
 CONTEXT_DIR = DATA_DIR / "context"
 DB_PATH = DATA_DIR / "bench.db"
 
-for folder in (DATA_DIR, AUDIO_DIR, PRIMER_DIR, MUSIC_DIR, CONTEXT_DIR):
+for folder in (DATA_DIR, AUDIO_DIR, PRIMER_DIR, PUBLISHED_DIR, MUSIC_DIR, CONTEXT_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Stimgen 3")
@@ -621,6 +623,43 @@ def init_db():
         )
     """)
     import_music_library(connection)
+
+    connection.execute("""
+        create table if not exists published (
+            id integer primary key autoincrement,
+            code text unique not null,
+            experiment_id integer,
+            experience_id integer,
+            title text default '',
+            author text default '',
+            about text default '',
+            questions text default '[]',
+            primer_id text default '',
+            primer_s real default 0,
+            audio_file text default '',
+            duration_s real default 0,
+            contents text default '',
+            is_live integer default 1,
+            created_at text not null
+        )
+    """)
+    connection.execute("""
+        create table if not exists listeners (
+            id integer primary key autoincrement,
+            published_id integer not null,
+            name text default '',
+            answer text default '',
+            played integer default 0,
+            rating integer default 0,
+            chills text default '',
+            chills_about text default '',
+            created_at text not null,
+            updated_at text default ''
+        )
+    """)
+    connection.execute(
+        "create index if not exists listeners_by_published on listeners (published_id)"
+    )
 
     seeded = connection.execute("select count(*) as n from voices").fetchone()["n"]
     if seeded == 0:
@@ -2735,6 +2774,322 @@ def get_music_audio(track_id: int, request: Request):
     if not row:
         raise HTTPException(404, "track not found")
     return ranged_file_response(library_track_path(row), request)
+
+
+# publish, the link a listener opens
+
+CODE_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"
+
+
+def new_code(connection):
+    """Short, lowercase, no characters that get misread out loud."""
+    for _ in range(50):
+        code = "".join(random.choice(CODE_ALPHABET) for _ in range(4))
+        clash = connection.execute(
+            "select id from published where code = ?", (code,)
+        ).fetchone()
+        if not clash:
+            return code
+    return uuid.uuid4().hex[:8]
+
+
+def public_base(request):
+    """The app's own address, taken from the request, so links work wherever it runs."""
+    forwarded = request.headers.get("x-forwarded-proto")
+    scheme = forwarded.split(",")[0].strip() if forwarded else request.url.scheme
+    host = request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host}"
+
+
+def contents_line(connection, row):
+    """The one line summary shown under a published card."""
+    pieces = []
+    if row["primer_id"]:
+        primer = fetch_primer(connection, row["primer_id"])
+        if primer:
+            pieces.append(f"Primer {primer['id']} {primer['name']}")
+    if row["model"]:
+        pieces.append(f"Model {row['model']}")
+    voice = voice_name_for(connection, row["voice_id"]) or row["voice_id"]
+    if voice:
+        pieces.append(f"Voice {voice}, {row['tts_provider'] or 'elevenlabs'}")
+    if row["music_track_id"]:
+        track = fetch_track(connection, row["music_track_id"])
+        if track:
+            pieces.append(f"Music {track['theme']} / {track['name']}")
+    elif row["music_filename"]:
+        pieces.append(f"Music {row['music_filename']}")
+    return " \u00b7 ".join(pieces)
+
+
+def listener_row(row):
+    return {
+        "id": row["id"],
+        "name": row["name"] or "",
+        "answer": row["answer"] or "",
+        "played": bool(row["played"]),
+        "rating": row["rating"] or 0,
+        "chills": row["chills"] or "",
+        "chills_about": row["chills_about"] or "",
+        "created_at": row["created_at"],
+    }
+
+
+def published_row(connection, row, base=""):
+    listeners = connection.execute(
+        "select * from listeners where published_id = ? order by id desc", (row["id"],)
+    ).fetchall()
+    people = [listener_row(item) for item in listeners]
+    return {
+        "id": row["id"],
+        "code": row["code"],
+        "url": f"{base}/x/{row['code']}" if base else f"/x/{row['code']}",
+        "experiment_id": row["experiment_id"],
+        "experience_id": row["experience_id"],
+        "title": row["title"] or "",
+        "author": row["author"] or "ReWire",
+        "questions": json.loads(row["questions"] or "[]"),
+        "primer_id": row["primer_id"] or "",
+        "primer_s": row["primer_s"] or 0,
+        "duration_s": row["duration_s"] or 0,
+        "duration": fmt_seconds(row["duration_s"] or 0),
+        "contents": row["contents"] or "",
+        "is_live": bool(row["is_live"]),
+        "created_at": row["created_at"],
+        "signed_up": len(people),
+        "played": sum(1 for p in people if p["played"]),
+        "got_chills": sum(1 for p in people if p["chills"] == "yes"),
+        "people": people,
+    }
+
+
+class PublishReq(BaseModel):
+    experiment_id: int = 0
+    author: str = ""
+    about: str = ""
+
+
+@app.post("/api/bench/publish")
+def publish_experiment(req: PublishReq, request: Request):
+    connection = db()
+    try:
+        row = fetch_experiment(connection, req.experiment_id)
+        if not row:
+            raise HTTPException(404, "run not found")
+        if not row["mix_file"]:
+            raise HTTPException(400, "make the mp3 before publishing, a listener needs the audio")
+        source = AUDIO_DIR / row["mix_file"]
+        if not source.exists():
+            raise HTTPException(400, "the mp3 for this run is missing from the server")
+
+        author = req.author.strip()[:80]
+        if not author and row["experience_id"]:
+            existing = experience_row(connection, row["experience_id"])
+            author = (existing or {}).get("author", "")
+        author = author or "ReWire"
+
+        code = new_code(connection)
+        # a frozen copy, so deleting the run later cannot break a link a listener holds
+        audio_file = f"{code}.mp3"
+        PUBLISHED_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, PUBLISHED_DIR / audio_file)
+        duration = audio_seconds(PUBLISHED_DIR / audio_file)
+
+        connection.execute(
+            "insert into published (code, experiment_id, experience_id, title, author, about, "
+            "questions, primer_id, primer_s, audio_file, duration_s, contents, is_live, created_at) "
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
+            (code, row["id"], row["experience_id"], row["title"] or "", author,
+             req.about.strip(), row["questions"] or "[]", row["primer_id"] or "",
+             row["primer_s"] or 0, audio_file, duration,
+             contents_line(connection, row), now()),
+        )
+        connection.commit()
+        published = connection.execute(
+            "select * from published where code = ?", (code,)
+        ).fetchone()
+        return published_row(connection, published, public_base(request))
+    finally:
+        connection.close()
+
+
+@app.get("/api/bench/published")
+def list_published(request: Request):
+    connection = db()
+    rows = connection.execute("select * from published order by id desc").fetchall()
+    base = public_base(request)
+    out = [published_row(connection, row, base) for row in rows]
+    connection.close()
+    return {"published": out}
+
+
+@app.delete("/api/bench/published/{published_id}")
+def unpublish(published_id: int):
+    """Takes the link down. What listeners already told us is kept."""
+    connection = db()
+    try:
+        row = connection.execute(
+            "select * from published where id = ?", (published_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "not found")
+        connection.execute("update published set is_live = 0 where id = ?", (published_id,))
+        connection.commit()
+        return {"status": "ok"}
+    finally:
+        connection.close()
+
+
+# the public side, what a listener's browser calls
+
+EXPERIENCE_PATH = Path(__file__).parent / "experience.html"
+
+
+def live_published(connection, code):
+    row = connection.execute(
+        "select * from published where code = ?", (Path(code).name,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(404, "this link does not exist")
+    if not row["is_live"]:
+        raise HTTPException(410, "this experience is no longer available")
+    return row
+
+
+def touch_listener(connection, published_id, listener_id):
+    row = connection.execute(
+        "select * from listeners where id = ? and published_id = ?",
+        (listener_id, published_id),
+    ).fetchone()
+    if not row:
+        raise HTTPException(404, "listener not found")
+    return row
+
+
+class ListenerStartReq(BaseModel):
+    name: str = ""
+
+
+class ListenerAnswerReq(BaseModel):
+    listener_id: int = 0
+    answer: str = ""
+
+
+class ListenerFeedbackReq(BaseModel):
+    listener_id: int = 0
+    rating: int = 0
+    chills: str = ""
+    chills_about: str = ""
+
+
+@app.get("/x/{code}")
+def serve_experience(code: str):
+    if not EXPERIENCE_PATH.exists():
+        raise HTTPException(404, "the listener page is not installed on this server")
+    return FileResponse(str(EXPERIENCE_PATH), media_type="text/html",
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/pub/{code}")
+def public_experience(code: str):
+    """Everything the listener page needs, and nothing about the creator's setup."""
+    connection = db()
+    try:
+        row = live_published(connection, code)
+        questions = json.loads(row["questions"] or "[]")
+        first = questions[0]["question"] if questions and questions[0].get("question") else ""
+        return {
+            "code": row["code"],
+            "author": row["author"] or "ReWire",
+            "about": row["about"] or "",
+            "question": first,
+            "audio_url": f"/api/pub/{row['code']}/audio",
+            "primer_s": row["primer_s"] or 0,
+            "duration_s": row["duration_s"] or 0,
+        }
+    finally:
+        connection.close()
+
+
+@app.get("/api/pub/{code}/audio")
+def public_audio(code: str, request: Request):
+    connection = db()
+    try:
+        row = live_published(connection, code)
+        path = PUBLISHED_DIR / Path(row["audio_file"]).name
+        if not path.exists():
+            raise HTTPException(404, "the audio for this experience is missing")
+        return ranged_file_response(path, request)
+    finally:
+        connection.close()
+
+
+@app.post("/api/pub/{code}/start")
+def public_start(code: str, req: ListenerStartReq):
+    connection = db()
+    try:
+        row = live_published(connection, code)
+        cursor = connection.execute(
+            "insert into listeners (published_id, name, created_at) values (?, ?, ?)",
+            (row["id"], req.name.strip()[:80], now()),
+        )
+        connection.commit()
+        return {"listener_id": cursor.lastrowid}
+    finally:
+        connection.close()
+
+
+@app.post("/api/pub/{code}/answer")
+def public_answer(code: str, req: ListenerAnswerReq):
+    connection = db()
+    try:
+        row = live_published(connection, code)
+        touch_listener(connection, row["id"], req.listener_id)
+        connection.execute(
+            "update listeners set answer = ?, updated_at = ? where id = ?",
+            (req.answer.strip()[:4000], now(), req.listener_id),
+        )
+        connection.commit()
+        return {"status": "ok"}
+    finally:
+        connection.close()
+
+
+@app.post("/api/pub/{code}/played")
+def public_played(code: str, req: ListenerAnswerReq):
+    connection = db()
+    try:
+        row = live_published(connection, code)
+        touch_listener(connection, row["id"], req.listener_id)
+        connection.execute(
+            "update listeners set played = 1, updated_at = ? where id = ?",
+            (now(), req.listener_id),
+        )
+        connection.commit()
+        return {"status": "ok"}
+    finally:
+        connection.close()
+
+
+@app.post("/api/pub/{code}/feedback")
+def public_feedback(code: str, req: ListenerFeedbackReq):
+    connection = db()
+    try:
+        row = live_published(connection, code)
+        touch_listener(connection, row["id"], req.listener_id)
+        chills = req.chills.strip().lower()
+        if chills not in ("", "yes", "no"):
+            chills = ""
+        connection.execute(
+            "update listeners set rating = ?, chills = ?, chills_about = ?, updated_at = ? "
+            "where id = ?",
+            (max(0, min(5, int(req.rating or 0))), chills,
+             req.chills_about.strip()[:4000], now(), req.listener_id),
+        )
+        connection.commit()
+        return {"status": "ok"}
+    finally:
+        connection.close()
 
 
 @app.delete("/api/bench/experiments/{experiment_id}")
