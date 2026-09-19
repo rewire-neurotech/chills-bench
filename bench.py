@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import threading
@@ -326,6 +327,125 @@ def fmt_seconds(seconds):
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
+MUSIC_LIBRARY_DIR = Path(__file__).parent / "MusicDB"
+AUDIO_EXTENSIONS = (".mp3", ".wav", ".m4a", ".flac", ".ogg")
+
+
+def audio_seconds(path):
+    """Full file length. ffprobe reads the header, pydub has to decode, so try ffprobe first."""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        value = float(result.stdout.strip())
+        if value > 0:
+            return value
+    except Exception:
+        pass
+    try:
+        return len(AudioSegment.from_file(path)) / 1000.0
+    except Exception:
+        return 0.0
+
+
+def theme_parts(folder_name):
+    """'4. Adventure' becomes (4, 'Adventure'). Anything unnumbered sorts last."""
+    match = re.match(r"^\s*(\d+)\s*[.\-)]?\s*(.+)$", folder_name)
+    if match:
+        return int(match.group(1)), match.group(2).strip()
+    return 999, folder_name.strip()
+
+
+def track_display_name(file_name):
+    """Turns a generator export into something pickable. Nothing on disk is renamed."""
+    name = re.sub(r"\.[A-Za-z0-9]+$", "", file_name)
+    name = re.sub(r"\s*\(\d+\)$", "", name)            # the (1) duplicate marker
+    name = re.sub(r"^\d+\s*[.\-)]\s*", "", name)       # a leading "3. "
+    name = re.sub(r"^(D\d+|music)[_\s]+", "", name)    # the odd D1 and music_ prefixes
+    name = re.sub(r"_?\d{4}-\d{2}-\d{2}T\d+.*$", "", name)
+    name = name.replace("_", " ").replace("-", " ").strip()
+    return re.sub(r"\s+", " ", name) or "Untitled"
+
+
+def track_date(file_name):
+    match = re.search(r"(\d{4})-(\d{2})-(\d{2})T\d+", file_name)
+    if not match:
+        return ""
+    try:
+        made = datetime(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        return made.strftime("%d %b %Y").lstrip("0")
+    except ValueError:
+        return ""
+
+
+def import_music_library(connection):
+    """Reads MusicDB from the repo. Only measures a file it has not seen before."""
+    if not MUSIC_LIBRARY_DIR.exists():
+        print("MusicDB folder not found, music library is empty")
+        return
+
+    seen = set()
+    added = 0
+    folders = sorted([p for p in MUSIC_LIBRARY_DIR.iterdir() if p.is_dir()],
+                     key=lambda p: theme_parts(p.name)[0])
+    for folder in folders:
+        theme_order, theme = theme_parts(folder.name)
+        files = sorted([f for f in folder.iterdir()
+                        if f.is_file() and f.suffix.lower() in AUDIO_EXTENSIONS],
+                       key=lambda f: f.name.lower())
+
+        # a base name used more than once in a theme gets numbered, so they can be told apart
+        bases = [track_display_name(f.name) for f in files]
+        repeated = {b for b in bases if bases.count(b) > 1}
+        used = {}
+
+        for position, path in enumerate(files):
+            rel_path = f"{folder.name}/{path.name}"
+            seen.add(rel_path)
+            base = track_display_name(path.name)
+            if base in repeated:
+                used[base] = used.get(base, 0) + 1
+                display = f"{base} {used[base]}"
+            else:
+                display = base
+
+            size = path.stat().st_size
+            existing = connection.execute(
+                "select id, size_bytes from music_tracks where rel_path = ?", (rel_path,)
+            ).fetchone()
+            if existing and existing["size_bytes"] == size:
+                connection.execute(
+                    "update music_tracks set theme = ?, theme_order = ?, name = ?, sort_order = ? "
+                    "where id = ?",
+                    (theme, theme_order, display, theme_order * 1000 + position, existing["id"]),
+                )
+                continue
+
+            duration = audio_seconds(path)
+            connection.execute(
+                "insert or replace into music_tracks (rel_path, theme, theme_order, name, "
+                "file_name, made_on, duration_s, size_bytes, sort_order, created_at) "
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (rel_path, theme, theme_order, display, path.name, track_date(path.name),
+                 duration, size, theme_order * 1000 + position, now()),
+            )
+            added += 1
+
+    # a track whose file has gone is dropped, old runs keep their own copy of the path
+    rows = connection.execute("select id, rel_path from music_tracks").fetchall()
+    gone = [row["id"] for row in rows if row["rel_path"] not in seen]
+    for track_id in gone:
+        connection.execute("delete from music_tracks where id = ?", (track_id,))
+
+    total = connection.execute("select count(*) as n from music_tracks").fetchone()["n"]
+    if added or gone:
+        print(f"music library: {total} tracks, {added} newly measured, {len(gone)} removed")
+    else:
+        print(f"music library: {total} tracks")
+
+
 def init_db():
     connection = db()
     connection.execute("""
@@ -480,6 +600,23 @@ def init_db():
         "on primer_audio (primer_id, voice_id, settings_key)"
     )
     load_primers(connection)
+
+    connection.execute("""
+        create table if not exists music_tracks (
+            id integer primary key autoincrement,
+            rel_path text unique not null,
+            theme text default '',
+            theme_order integer default 0,
+            name text default '',
+            file_name text default '',
+            made_on text default '',
+            duration_s real default 0,
+            size_bytes integer default 0,
+            sort_order integer default 0,
+            created_at text default ''
+        )
+    """)
+    import_music_library(connection)
 
     seeded = connection.execute("select count(*) as n from voices").fetchone()["n"]
     if seeded == 0:
@@ -2117,6 +2254,7 @@ def run_make(
     pause_ms="",
     long_pause_ms="",
     music_ref="",
+    music_track_id=0,
     music=None,
 ):
     tts_provider = tts_provider.strip() or "elevenlabs"
@@ -2145,6 +2283,7 @@ def run_make(
         mix_py = ""
         music = None
         music_ref = ""
+        music_track_id = 0
 
     mix_function = load_mix_function(mix_py)
 
@@ -2163,7 +2302,16 @@ def run_make(
         music_path = ""
         music_filename = ""
         music_rel = ""
-        if music is not None and music.filename:
+        if music_track_id:
+            track = fetch_track(connection, music_track_id)
+            if not track:
+                raise HTTPException(404, f"music track {music_track_id} not found")
+            music_path = library_track_path(track)
+            music_filename = track["file_name"]
+            music_rel = f"lib:{track['rel_path']}"
+            log.append(f"music from the library, {track['theme']} / {track['name']} "
+                       f"({fmt_seconds(track['duration_s'])})")
+        elif music is not None and music.filename:
             # keep the original filename inside a per experiment folder, a prefix
             # would break mix files that read the name to pick a profile
             music_filename = Path(music.filename).name
@@ -2289,6 +2437,7 @@ def make_mp3(
     pause_ms: str = Form(""),
     long_pause_ms: str = Form(""),
     music_ref: str = Form(""),
+    music_track_id: int = Form(0),
     music: UploadFile | None = File(default=None),
 ):
     # the upload only exists for the life of this request, so copy it to disk before queueing
@@ -2306,7 +2455,8 @@ def make_mp3(
         "style": style, "boost": boost, "tts_provider": tts_provider,
         "experiment_id": experiment_id, "voice_only": voice_only, "balance_db": balance_db,
         "fade_in_s": fade_in_s, "fade_out_s": fade_out_s, "pause_ms": pause_ms,
-        "long_pause_ms": long_pause_ms, "music_ref": music_ref, "music": saved_music,
+        "long_pause_ms": long_pause_ms, "music_ref": music_ref,
+        "music_track_id": music_track_id, "music": saved_music,
     }
     job_id = new_job()
     MAKE_POOL.submit(run_make_job, job_id, kwargs, temp_music)
@@ -2452,6 +2602,65 @@ def get_primer_audio(filename: str, request: Request):
     if not path.exists():
         raise HTTPException(404, "primer audio not found")
     return ranged_file_response(path, request)
+
+
+# music library, read from the MusicDB folder in the repo
+
+def music_track_row(row):
+    return {
+        "id": row["id"],
+        "theme": row["theme"] or "",
+        "theme_order": row["theme_order"] or 0,
+        "name": row["name"] or "",
+        "file_name": row["file_name"] or "",
+        "rel_path": row["rel_path"],
+        "made_on": row["made_on"] or "",
+        "duration_s": row["duration_s"] or 0,
+        "duration": fmt_seconds(row["duration_s"] or 0),
+        "url": f"/api/bench/music_audio/{row['id']}",
+    }
+
+
+def fetch_track(connection, track_id):
+    return connection.execute(
+        "select * from music_tracks where id = ?", (track_id,)
+    ).fetchone()
+
+
+def library_track_path(row):
+    """Resolves a track to a real file and refuses anything outside MusicDB."""
+    candidate = (MUSIC_LIBRARY_DIR / row["rel_path"]).resolve()
+    if MUSIC_LIBRARY_DIR.resolve() not in candidate.parents:
+        raise HTTPException(400, "music path is outside the library")
+    if not candidate.exists():
+        raise HTTPException(404, f"music file missing: {row['rel_path']}")
+    return candidate
+
+
+@app.get("/api/bench/music")
+def list_music():
+    connection = db()
+    rows = connection.execute(
+        "select * from music_tracks order by sort_order, name"
+    ).fetchall()
+    connection.close()
+    tracks = [music_track_row(row) for row in rows]
+    themes = []
+    for track in tracks:
+        if not themes or themes[-1]["theme"] != track["theme"]:
+            themes.append({"theme": track["theme"], "order": track["theme_order"], "count": 0})
+        themes[-1]["count"] += 1
+    return {"tracks": tracks, "themes": themes}
+
+
+@app.get("/api/bench/music_audio/{track_id}")
+def get_music_audio(track_id: int, request: Request):
+    connection = db()
+    row = fetch_track(connection, track_id)
+    connection.close()
+    if not row:
+        raise HTTPException(404, "track not found")
+    return ranged_file_response(library_track_path(row), request)
 
 
 @app.delete("/api/bench/experiments/{experiment_id}")
