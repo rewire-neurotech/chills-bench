@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stimgen 3</title>
+<title>Stimgen 3.1 — mockup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -12,1176 +12,1074 @@
   --green:#2E6B4F; --green-soft:#EAF2EE;
   --red:#B0402C; --red-soft:#F7ECE9;
   --amber:#A8721B; --amber-soft:#FBF4E6;
+  --substance:#1F6E6E; --form:#96700F; --technique:#6C4FA0;
   --sans:'IBM Plex Sans',system-ui,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:var(--sans);background:var(--paper);color:var(--ink);font-size:13px;line-height:1.45}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);font-size:13px;line-height:1.45;overflow:hidden}
 button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
-input,textarea,select{font:inherit;color:inherit}
+input,textarea,select{font:inherit;color:inherit;background:transparent}
+textarea{resize:vertical}
 ::placeholder{color:#B4B3AA}
-:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+[hidden]{display:none !important}
 
 /* ---------- top bar ---------- */
-.topbar{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20}
-.wordmark{font-weight:600;font-size:15px}
-.wordmark span{color:var(--muted);font-weight:400}
-.topbar .spacer{flex:1}
+.topbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.wordmark{font-weight:600;font-size:14px;letter-spacing:.01em}
+.wordmark span{color:var(--muted);font-weight:400;margin-left:4px}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.env{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.fam{position:sticky;top:0;background:var(--panel);font-size:11px;font-weight:500;color:var(--muted);padding:6px 9px 3px;border-bottom:1px solid var(--line-soft);z-index:1}
+.track.prim{grid-template-columns:auto auto 1fr auto}
+.track.prim .t-code{font-family:var(--mono);font-size:11px;color:var(--muted);width:26px}
+.track.prim .t-name{line-height:1.25}
+.track.prim .t-name small{display:block;color:var(--muted);font-size:11px;font-weight:400}
+.tracks.primers{max-height:300px}
+.btn.small.disabled,.btn[disabled]{opacity:.4;pointer-events:none}
 
 /* ---------- layout ---------- */
-.app{display:grid;grid-template-columns:300px 420px 1fr;height:calc(100vh - 45px)}
-body.hist-closed .app{grid-template-columns:34px 420px 1fr}
-body.hist-closed .left{display:none}
-.left-rail{display:none;border-right:1px solid var(--line);background:var(--paper);padding-top:10px;justify-content:center;align-items:flex-start}
-body.hist-closed .left-rail{display:flex}
-.left-rail button{color:var(--muted);font-size:13px;padding:4px 6px;border-radius:6px}
-.left-rail button:hover{color:var(--ink);background:var(--line-soft)}
-.col{overflow-y:auto;min-width:0}
-.left{border-right:1px solid var(--line);background:var(--paper);padding:12px}
-.compose{border-right:1px solid var(--line);background:var(--paper);padding:14px 16px 50px}
-.doc{background:var(--panel);display:flex;flex-direction:column}
+.app{display:flex;height:calc(100% - 44px)}
+.rail{width:22px;border-right:1px solid var(--line);background:var(--panel);display:flex;align-items:flex-start;justify-content:center;padding-top:10px;color:var(--muted);font-size:12px}
+.rail:hover{color:var(--ink)}
+.panel{width:310px;flex:0 0 310px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 0 12px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:14px}
+.tab{padding:6px 0 8px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--ink);border-color:var(--ink)}
+.x{color:var(--muted);font-size:18px;line-height:1;padding:2px 6px}
+.x:hover{color:var(--ink)}
+.tabpane{display:none;overflow:auto;padding:10px 12px 40px}
+.tabpane.active{display:block}
 
-/* ---------- shared ---------- */
-.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.mono{font-family:var(--mono)}
-.hint{font-size:11.5px;color:var(--muted);line-height:1.5}
-.field-label{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:block}
-.tinput,.tarea,.tselect{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 9px;background:var(--panel);font-size:12.5px}
-.tarea{resize:vertical;min-height:64px}
-.btn{border:1px solid var(--line);border-radius:7px;padding:6px 12px;background:var(--panel);font-size:12.5px}
-.btn:hover{border-color:#CBCAC1}
-.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
-.btn.small{padding:4px 9px;font-size:11.5px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.row-flex{display:flex;gap:6px}
-.row-flex .tinput{flex:1}
+/* ---------- runs ---------- */
+.run{border:1px solid var(--line);border-radius:6px;padding:10px 10px 8px;margin-bottom:10px;background:var(--panel)}
+.run.new{animation:pop .5s ease}
+@keyframes pop{from{transform:translateY(-6px);opacity:0}to{transform:none;opacity:1}}
+.run-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.run-title{font-weight:500}
+.vn{color:var(--muted);font-weight:400;margin-left:4px;font-family:var(--mono);font-size:11px}
+.run-date{color:var(--muted);font-size:11px;white-space:nowrap}
+.mini{display:flex;align-items:center;gap:8px;margin:8px 0}
+.play{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:9px;flex:0 0 22px}
+.play:hover{border-color:var(--ink)}
+.bar{flex:1;height:2px;background:var(--line);position:relative}
+.bar i{position:absolute;left:0;top:0;height:100%;width:0;background:var(--ink)}
+.bar.playing i{animation:grow 40s linear forwards}
+@keyframes grow{to{width:100%}}
+.dur{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.tags{display:flex;gap:6px;margin:4px 0 8px}
+.tag{font-size:11px;padding:2px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.tag.on.rej{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.tag.on.good{border-color:var(--green);color:var(--green);background:var(--green-soft)}
+.tag.on.best{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.comment input{width:100%;border:none;border-bottom:1px dashed var(--line);padding:4px 0;font-size:12px}
+.comment .saved{font-size:12px;padding:4px 0;color:var(--ink);cursor:text}
+.comment .saved::before{content:"“"}.comment .saved::after{content:"”"}
+.run-actions{display:flex;gap:12px;margin-top:8px;font-size:12px}
+.link{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;font-size:12px}
+.link:hover{text-decoration-color:var(--ink)}
+.link.muted{color:var(--muted)}
+.log{display:none;margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted);background:var(--paper);padding:8px;border-radius:4px;white-space:pre-wrap;line-height:1.5}
+.log .warn{color:var(--amber)}
+.run.logopen .log{display:block}
 
-/* ---------- compose sections (v2-style toggles) ---------- */
-.sec{border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:8px}
-.sec > summary{list-style:none;padding:9px 11px;display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;font-weight:500}
-.sec > summary::before{content:"▸";color:var(--muted);font-size:10px;transition:transform .12s}
-.sec[open] > summary::before{transform:rotate(90deg)}
-.sec > .body{padding:2px 11px 11px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:9px}
-.sec .body > :first-child{margin-top:8px}
-.subdetails{border:1px solid var(--line-soft);border-radius:7px}
-.subdetails > summary{list-style:none;padding:7px 9px;font-size:12px;color:var(--muted);cursor:pointer}
-.subdetails > summary::before{content:"▸ ";font-size:10px}
-.subdetails[open] > summary::before{content:"▾ "}
-.subdetails > .body{padding:0 9px 9px}
-.codebox{width:100%;font-family:var(--mono);font-size:11.5px;background:var(--paper);border:1px solid var(--line-soft);border-radius:6px;padding:8px;min-height:70px;resize:vertical;color:var(--ink)}
+/* ---------- published ---------- */
+.pub{border:1px solid var(--line);border-radius:6px;padding:12px 12px 10px;margin-bottom:10px;background:var(--panel)}
+.pub.new{animation:pop .5s ease}
+.pub-title{font-weight:600;font-size:14px}
+.pub-nums{display:flex;gap:18px;margin:10px 0 8px}
+.pub-nums div{display:flex;flex-direction:column}
+.pub-nums b{font-size:22px;font-weight:600;line-height:1;letter-spacing:-.01em}
+.pub-nums small{color:var(--muted);font-size:11px;margin-top:3px}
+.pub-nums .chills b{color:var(--amber)}
+.pub-link{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;margin-bottom:10px}
+.pub-link a{color:var(--ink)}
+.pub-contents{font-size:11.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line-soft);padding-top:8px}
+.pub-contents b{color:var(--ink);font-weight:500}
+.people{margin-top:10px;border-top:1px solid var(--line-soft);padding-top:6px}
+.person{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:12px}
+.person:last-child{border-bottom:none}
+.person .pd{color:var(--muted);font-size:11px;text-align:right}
+.person .said{grid-column:1/3;color:var(--muted);font-size:11.5px}
+.chip{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--amber-soft);color:var(--amber);margin-left:6px;vertical-align:1px}
+.chip.quiet{background:var(--paper);color:var(--muted)}
 
-/* ---------- questions ---------- */
-.q{margin-bottom:10px}
-.q .q-line{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
-.q .q-num{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-.q .q-text{font-size:12.5px;font-weight:500;border-bottom:1px dashed transparent;outline:none}
-.q .q-text:hover,.q .q-text:focus{border-bottom-color:#C9C8BF}
-.q .q-x{color:var(--muted);font-size:11px;margin-left:auto}
-.q .q-x:hover{color:var(--red)}
-.answer-wrap{position:relative}
-.answer-wrap .tarea{padding-bottom:30px}
-.autogen{position:absolute;left:7px;bottom:7px;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px;background:var(--paper)}
-.autogen:hover{color:var(--ink)}
-.addq{font-size:12px;color:var(--muted);padding:2px 0}
-.addq:hover{color:var(--ink)}
-
-/* ---------- context docs ---------- */
-.ctx-group{margin-top:2px}
-.ctx-group .g-name{font-size:12px;font-weight:500;margin-bottom:4px;display:flex;align-items:baseline}
-.ctx-group .g-add{margin-left:auto;font-size:11px;color:var(--muted);font-weight:400}
-.ctx-group .g-add:hover{color:var(--ink)}
-.doc-row{display:flex;align-items:center;gap:7px;padding:4px 2px;font-size:12px}
-.doc-row input[type=checkbox]{accent-color:var(--ink)}
-.doc-row .fname{flex:1;font-family:var(--mono);font-size:11.5px}
-.doc-row .size{color:var(--muted);font-size:11px}
-.doc-row .size b{font-family:var(--mono);font-weight:500;color:var(--green);margin-right:3px}
-.doc-row .kb{font-family:var(--mono);font-size:10.5px;color:var(--muted);width:32px;text-align:right}
-.budget{margin-top:6px;border-top:1px solid var(--line-soft);padding-top:8px}
-.budget .nums{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:4px}
-.budget .bar{height:4px;border-radius:999px;background:var(--line-soft);overflow:hidden}
-.budget .fill{height:100%;width:57%;border-radius:999px;background:var(--ink)}
-
-/* ---------- generate ---------- */
-.genbtn{margin-top:0;padding:9px}
-.row-flex.genrow{margin-top:4px}
-.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;margin-right:7px;vertical-align:-2px;animation:spin .7s linear infinite}
-.btn:not(.primary) .spinner{border-color:var(--line);border-top-color:var(--ink)}
+/* ---------- compose ---------- */
+.compose{width:460px;flex:0 0 460px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--paper)}
+.title-row{display:flex;align-items:baseline;gap:8px;padding:14px 18px 8px}
+.title-row input{border:none;font-size:18px;font-weight:600;letter-spacing:-.01em;width:100%;padding:0}
+.title-row input:focus{outline:none;border-bottom:1px solid var(--line)}
+.title-row .vnum{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.by-row{display:flex;align-items:center;gap:10px;padding:0 18px 12px;font-size:12px;color:var(--muted)}
+.author{font-weight:500;color:var(--ink);border-bottom:1px dashed var(--muted);padding:0 1px;line-height:1.3}
+.author:hover{border-bottom-style:solid;border-bottom-color:var(--ink)}
+.author.default{color:var(--muted)}
+.author-input{border:none;border-bottom:1px solid var(--ink);font-size:12px;width:130px;padding:0 1px;font-weight:500}
+.by-hint{color:var(--muted)}
+.pub-by{font-size:12px;color:var(--muted);margin-top:2px}
+.sections{flex:1;overflow:auto;padding:0 18px 20px}
+.sec{border-top:1px solid var(--line)}
+.sec:last-child{border-bottom:1px solid var(--line)}
+.sec-head{width:100%;display:flex;align-items:center;gap:8px;padding:10px 0;text-align:left;font-weight:500}
+.sec-head .caret{font-size:10px;color:var(--muted);transition:transform .15s;width:10px}
+.sec.open .sec-head .caret{transform:rotate(90deg)}
+.sec-sum{margin-left:auto;color:var(--muted);font-weight:400;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.sec-body{display:none;padding:2px 0 14px 18px}
+.sec.open .sec-body{display:block}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.row label{color:var(--muted);font-size:12px;width:64px;flex:0 0 64px}
+.row select{border:1px solid var(--line);border-radius:4px;padding:4px 6px;background:var(--panel);font-size:12.5px}
+.hint{font-size:11.5px;color:var(--muted);margin:2px 0 8px}
+.field{border:1px solid var(--line);border-radius:4px;background:var(--panel);width:100%;padding:7px 9px;font-size:12.5px}
+textarea.field{min-height:64px;line-height:1.5}
+textarea.field.mono{font-family:var(--mono);font-size:11.5px;min-height:150px}
+.primer-text textarea{min-height:120px}
+.row-end{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+.row-between{display:flex;justify-content:space-between;margin-top:6px}
+.q{padding:8px 0 10px;border-bottom:1px dashed var(--line)}
+.q:first-child{padding-top:0}
+.q-input{border:none;border-bottom:1px solid var(--line);width:100%;padding:4px 0 6px;font-weight:500;margin-bottom:8px;background:transparent}
+.q-input:focus{outline:none;border-color:var(--ink)}
+.spin{display:inline-block;width:10px;height:10px;border:1.5px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-1px;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.doc-body{position:relative}
-.doc-body.generating .page{opacity:.3;pointer-events:none}
-.gen-dots{display:none;position:absolute;z-index:5;top:90px;left:50%;transform:translateX(-50%);text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 22px;box-shadow:0 6px 24px rgba(0,0,0,.07)}
-.doc-body.generating .gen-dots{display:block}
-.gen-dots i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ink);margin:0 3px;animation:bounce 1s infinite}
-.gen-dots i:nth-child(2){animation-delay:.15s}
-.gen-dots i:nth-child(3){animation-delay:.3s}
-@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-5px);opacity:1}}
+.docs{margin-top:12px}
+.dg{margin-bottom:10px}
+.dg-head{font-size:12px;font-weight:500;margin-bottom:3px}
+.dg label{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;cursor:pointer}
+.dg label input{accent-color:var(--ink)}
+.size{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+.size b{font-weight:600}
+.dg.substance .size b{color:var(--substance)}
+.dg.form .size b{color:var(--form)}
+.dg.technique .size b{color:var(--technique)}
+.budget{margin-top:8px}
+.budget .bar{height:3px}
+.budget .bar i{width:0;transition:width .3s}
+.budget .bar.over i{background:var(--red)}
+.budget .num{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.grid .f{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px}
+.grid .f span{color:var(--muted);font-size:12px}
+.grid .f input,.grid .f select{width:84px;border:1px solid var(--line);border-radius:4px;padding:4px 6px;background:var(--panel);font-size:12.5px;text-align:right}
+.grid .f select{text-align:left;width:118px}
+.grid .f input.mono{font-family:var(--mono)}
+.search{width:100%;border:1px solid var(--line);border-radius:4px;padding:6px 9px;background:var(--panel);font-size:12.5px;margin-bottom:6px}
+.tracks{border:1px solid var(--line);border-radius:4px;background:var(--panel);max-height:196px;overflow:auto}
+.track{display:grid;grid-template-columns:auto 1fr auto auto auto;align-items:center;gap:10px;padding:7px 9px;border-bottom:1px solid var(--line-soft);cursor:pointer;font-size:12.5px}
+.track:last-child{border-bottom:none}
+.track:hover{background:var(--paper)}
+.track input{accent-color:var(--ink);margin:0}
+.track.selected{background:var(--paper)}
+.track.selected .t-name{font-weight:500}
+.t-feel,.t-dur{color:var(--muted);font-size:11.5px}
+.t-dur{font-family:var(--mono)}
+.track.hide{display:none}
+.mixpy{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.mixpy summary{cursor:pointer;font-size:12.5px;font-weight:500;list-style:none}
+.mixpy summary::before{content:"▸ ";color:var(--muted);font-size:10px}
+.mixpy[open] summary::before{content:"▾ "}
+.mixpy textarea{margin-top:8px}
+.elements{margin:10px 0 0}
+.el{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:4px 0}
+.el .rm{color:var(--muted)}
+.compose-foot{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--line);background:var(--paper)}
+.btn{padding:7px 14px;border-radius:4px;font-weight:500;font-size:13px;border:1px solid var(--line);background:var(--panel)}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:#000}
+.btn.publish{background:var(--green);border-color:var(--green);color:#fff}
+.btn.publish:hover{background:#245640}
+.btn.small{padding:5px 10px;font-size:12px}
+.btn.busy{opacity:.75;pointer-events:none}
+.btn .spin{border-color:rgba(255,255,255,.35);border-top-color:#fff}
+.btn.ghost .spin{border-color:var(--line);border-top-color:var(--ink)}
 
-/* ---------- doc panel ---------- */
-.doc-head{display:flex;align-items:center;gap:9px;padding:10px 18px;border-bottom:1px solid var(--line)}
-.doc-head .title{font-weight:500;font-size:13px}
-.doc-head .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-.doc-head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
-.edit-pill{font-family:var(--mono);font-size:10.5px;background:var(--line-soft);border-radius:999px;padding:2px 8px}
-.doc-body{flex:1;overflow-y:auto;padding:32px 0}
-.page{max-width:560px;margin:0 40px;font-size:15px;line-height:1.8}
-.page p{margin-bottom:1.3em}
-.page[contenteditable]:focus,.page[contenteditable]:focus-visible{outline:none}
-span.ins{color:var(--red)}
-mark.good{background:var(--green-soft);border-bottom:2px solid var(--green);color:inherit}
-mark.bad{background:var(--red-soft);border-bottom:2px solid var(--red);color:inherit}
-.margin-note{float:right;clear:right;width:150px;margin-right:-180px;font-size:11.5px;line-height:1.45;color:var(--muted);border-left:2px solid var(--line);padding-left:8px}
-.margin-note b{font-weight:500;color:var(--ink)}
-.pop{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:0 6px 24px rgba(0,0,0,.10);padding:7px;display:none;align-items:center;gap:6px}
-.pop.show{display:flex}
-.pop .thumb{width:28px;height:28px;border:1px solid var(--line);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
-.pop .thumb.on-good{background:var(--green-soft);border-color:var(--green)}
-.pop .thumb.on-bad{background:var(--red-soft);border-color:var(--red)}
-.pop input{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;width:170px}
-.doc-foot{border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-direction:column;gap:9px}
-.foot-row{display:flex;align-items:center;gap:10px}
-.foot-row .hint{flex:1}
-.player{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line-soft);border-radius:7px;padding:6px 9px}
-.player .play{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;flex:none}
-.player .track{flex:1;height:3px;background:var(--line);border-radius:999px}
-.player .t{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
-#mp3row{display:none}
-#mp3row.show{display:flex;flex-direction:column;gap:9px}
-.pub-done{display:none;align-items:center;gap:8px;font-size:12.5px}
-.pub-done.show{display:flex}
-.url-pill{font-family:var(--mono);font-size:11.5px;background:var(--green-soft);color:var(--green);border-radius:999px;padding:3px 10px}
+/* ---------- doc ---------- */
+.doc-panel{flex:1;display:flex;flex-direction:column;background:var(--panel);min-width:0}
+.doc-head{display:flex;align-items:center;justify-content:space-between;padding:12px 28px 10px;border-bottom:1px solid var(--line)}
+.doc-title{font-weight:600;font-size:14px}
+.doc-title .vn{margin-left:6px}
+.doc-wrap{flex:1;overflow:auto;position:relative}
+.doc-inner{display:flex;gap:24px;padding:28px 28px 60px 36px;max-width:920px}
+.doc{flex:1;max-width:560px;font-size:15px;line-height:1.7;min-height:200px;outline:none}
+.doc p{margin-bottom:1em}
+.doc .tag-p{color:var(--muted);font-size:13px;font-family:var(--mono)}
+.doc .empty{color:var(--muted);font-size:14px}
+.doc .ins{color:var(--red)}
+.doc mark{background:transparent;padding:1px 0}
+.doc mark.good{background:var(--green-soft);border-bottom:2px solid var(--green)}
+.doc mark.bad{background:var(--red-soft);border-bottom:2px solid var(--red)}
+.gutter{width:190px;flex:0 0 190px;position:relative;font-size:11.5px;color:var(--muted)}
+.note{position:absolute;left:0;width:100%;border-left:2px solid var(--line);padding-left:8px;line-height:1.45}
+.note.good{border-color:var(--green)}
+.note.bad{border-color:var(--red)}
+.note b{display:block;color:var(--ink);font-weight:500;font-size:11px}
+.status{position:absolute;inset:0;background:rgba(255,255,255,.92);display:none;padding:60px 36px;font-size:13.5px;color:var(--muted)}
+.status.on{display:block}
+.status div{opacity:0;animation:fadein .4s forwards}
+.status div:nth-child(2){animation-delay:.7s}
+.status div:nth-child(3){animation-delay:1.4s}
+@keyframes fadein{to{opacity:1}}
+.doc-foot{border-top:1px solid var(--line);padding:12px 28px;display:flex;flex-direction:column;gap:12px}
+.foot-row{display:flex;align-items:center;gap:14px}
+.player{display:none;align-items:center;gap:12px;flex:1}
+.player.on{display:flex}
+.player .play{width:30px;height:30px;flex-basis:30px;font-size:11px}
+.timeline{flex:1;position:relative;height:14px}
+.timeline .seg{position:absolute;top:6px;height:2px;background:var(--line)}
+.timeline .seg.primer{left:0;width:26%;background:var(--muted)}
+.timeline .seg.speech{left:27%;right:0}
+.timeline .head{position:absolute;top:2px;width:10px;height:10px;border-radius:50%;background:var(--ink);left:0;margin-left:-5px}
+.timeline.playing .head{animation:travel 90s linear forwards}
+@keyframes travel{to{left:100%}}
+.timeline .lbl{position:absolute;top:14px;font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+.timeline .lbl.p{left:0}.timeline .lbl.s{left:27%}
+.published-box{display:none;align-items:center;gap:12px;font-size:12.5px;background:var(--green-soft);border:1px solid #CFE0D6;border-radius:4px;padding:8px 12px}
+.published-box.on{display:flex}
+.published-box a{font-family:var(--mono);color:var(--green);font-size:12px}
+.published-box .ok{color:var(--green);font-weight:500}
 
-/* ---------- left panel ---------- */
-.left-head{display:flex;align-items:center;gap:2px;margin-bottom:10px}
-.ltab{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:4px 8px;border-radius:6px}
-.ltab.on{color:var(--ink);background:var(--line-soft)}
-.left-x{margin-left:auto;color:var(--muted);font-size:14px;padding:2px 6px;border-radius:6px}
-.left-x:hover{color:var(--ink);background:var(--line-soft)}
-.hfilters{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
-.hfilter{border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11.5px;color:var(--muted);background:var(--panel)}
-.hfilter.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-.hcard{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px;margin-bottom:8px}
-.hcard.best{border-left:3px solid var(--green)}
-.hcard.good{border-left:3px solid #7FA88F}
-.hcard.rejected{border-left:3px solid var(--red);opacity:.7}
-.hcard .h-title{font-size:12.5px;font-weight:500;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hcard .id-row{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:7px}
-.hcard .player{margin-bottom:7px}
-.tagrow{display:flex;gap:4px;margin-bottom:7px}
-.tag{border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:11px;color:var(--muted)}
-.tag.on-best{background:var(--green);border-color:var(--green);color:#fff}
-.tag.on-good{background:var(--green-soft);border-color:var(--green);color:var(--green)}
-.tag.on-rej{background:var(--red);border-color:var(--red);color:#fff}
-.comment-saved{font-size:12px;background:var(--paper);border:1px solid var(--line-soft);border-radius:7px;padding:6px 8px;margin-bottom:7px}
-.comment-saved .edit{font-size:10.5px;color:var(--muted);text-decoration:underline;margin-left:5px}
-.comment-input{display:flex;gap:5px;margin-bottom:7px}
-.comment-input input{flex:1;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px;background:var(--panel)}
-.hactions{display:flex;gap:8px;font-size:11.5px}
-.hactions button{color:var(--muted);padding:2px 0}
-.hactions button:hover{color:var(--ink);text-decoration:underline}
-.runlog{margin-top:5px}
-.runlog summary{list-style:none;font-size:11px;color:var(--muted);cursor:pointer}
-.runlog summary::before{content:"▸ "}
-.runlog[open] summary::before{content:"▾ "}
-.runlog .body{font-family:var(--mono);font-size:10.5px;color:var(--muted);padding-top:4px;line-height:1.6}
-.runlog .warn{color:var(--amber)}
-/* published list */
-.pcard{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px;margin-bottom:8px}
-.pcard .h-title{font-size:13px;font-weight:600;margin-bottom:1px}
-.pcard .p-date{font-size:11px;color:var(--muted);margin-bottom:9px}
-.pcard .stats{display:flex;gap:22px;margin-bottom:10px}
-.pcard .stat b{display:block;font-size:21px;font-weight:600;line-height:1.05}
-.pcard .stat span{font-size:10.5px;color:var(--muted)}
-.pcard .p-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-.pcard .copy{font-size:11px;color:var(--muted)}
-.pcard .copy:hover{color:var(--ink);text-decoration:underline}
-.kv{display:flex;gap:8px;font-size:11.5px;line-height:1.5;padding:1px 0}
-.kv .k{color:var(--muted);width:42px;flex:none}
-.kv .v{color:var(--ink)}
-.su{display:flex;align-items:baseline;gap:6px;font-size:11.5px;padding:2px 0}
-.su .n{color:var(--ink)}
-.su .d{color:var(--muted);font-size:10.5px;margin-left:auto}
-.su .pl{font-family:var(--mono);font-size:10px;background:var(--line-soft);border-radius:999px;padding:1px 6px;color:var(--ink)}
-.su .pl.zero{color:var(--muted)}
-[hidden]{display:none!important}
+/* ---------- popover / toast ---------- */
+.pop{position:fixed;display:none;background:var(--ink);color:#fff;border-radius:6px;padding:6px 8px;gap:6px;align-items:center;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.pop.on{display:flex}
+.pop button{font-size:14px;padding:2px 6px;border-radius:4px}
+.pop button.sel{background:rgba(255,255,255,.18)}
+.pop input{border:none;border-bottom:1px solid rgba(255,255,255,.35);color:#fff;font-size:12px;width:170px;padding:3px 0}
+.pop input::placeholder{color:rgba(255,255,255,.55)}
+.pop .save{font-size:12px;background:#fff;color:var(--ink);padding:3px 8px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-size:12.5px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
+.toast.on{opacity:1;transform:translateX(-50%)}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="wordmark">Stimgen <span>3</span></div>
-  <div class="spacer"></div>
-</div>
+<header class="topbar">
+  <div class="wordmark">Stimgen <span>3.1</span></div>
+  <div class="topbar-right"><span class="env">chills-bench-1.onrender.com</span><button class="btn small primary" id="newExp">+ New experience</button></div>
+</header>
 
 <div class="app">
+  <button class="rail" id="rail" title="Open panel">▸</button>
 
-  <!-- ==================== LEFT: HISTORY / PUBLISHED ==================== -->
-  <aside class="col left">
-    <div class="left-head">
-      <button class="ltab on" data-tab="history">Runs</button>
-      <button class="ltab" data-tab="published">Published</button>
-      <button class="left-x" id="histClose" title="Close panel">&times;</button>
-    </div>
-
-    <div id="tab-history">
-      <div class="hfilters">
-        <button class="hfilter on" data-filter="all">All</button>
-        <button class="hfilter" data-filter="Best so far">Best so far</button>
-        <button class="hfilter" data-filter="Good">Good</button>
-        <button class="hfilter" data-filter="Reject">Rejected</button>
+  <!-- ================= LEFT PANEL ================= -->
+  <aside class="panel" id="panel" hidden>
+    <div class="panel-head">
+      <div class="tabs">
+        <button class="tab active" data-tab="runs">Runs</button>
+        <button class="tab" data-tab="published">Published</button>
       </div>
-      <div id="runcards"></div>
-      <p class="hint" id="runsEmpty" hidden>No runs yet. Generate text to start.</p>
+      <button class="x" id="closePanel" title="Close">×</button>
     </div>
 
-    <div id="tab-published" hidden>
-      <p class="hint" style="margin-bottom:8px">Publishing is not wired up yet. This is what it will look like.</p>
-      <div class="pcard">
-        <div class="h-title">The cave of self acceptance</div>
-        <div class="p-date">published 24/08</div>
-        <div class="stats">
-          <div class="stat"><b>14</b><span>signups</span></div>
-          <div class="stat"><b>9</b><span>plays</span></div>
+    <div class="tabpane active" id="runs">
+      <div class="run">
+        <div class="run-top"><span class="run-title">Enough money<span class="vn">#13</span></span><span class="run-date">Sep 8, 14:02</span></div>
+        <div class="mini"><button class="play">▶</button><div class="bar"><i></i></div><span class="dur">11:42</span></div>
+        <div class="tags"><button class="tag rej">Reject</button><button class="tag good on">Good</button><button class="tag best">Best so far</button></div>
+        <div class="comment"><div class="saved">The middle part instructs too much.</div></div>
+        <div class="run-actions"><button class="link use">Use</button><button class="link">Download zip</button><button class="link muted logbtn">Run log</button></div>
+        <pre class="log">12:02:14  model claude-opus-4-1 · 1 question · 3 docs (41,900 chars)
+12:02:31  speech 1,214 words · 6 [pause] · 3 [long pause]
+12:03:05  eleven v3 · voice Sarah · 8:40
+12:03:22  primer S1 Contact 3:00 + speech · music First Embers −18 dB
+<span class="warn">12:03:22  warning: [long pause] at 6s makes a 14s gap after paragraph 4</span>
+12:03:26  mp3 11:42 written</pre>
+      </div>
+
+      <div class="run">
+        <div class="run-top"><span class="run-title">Enough money<span class="vn">#12</span></span><span class="run-date">Sep 8, 11:30</span></div>
+        <div class="mini"><button class="play">▶</button><div class="bar"><i></i></div><span class="dur">11:05</span></div>
+        <div class="tags"><button class="tag rej">Reject</button><button class="tag good">Good</button><button class="tag best on">Best so far</button></div>
+        <div class="comment"><input placeholder="Comment"></div>
+        <div class="run-actions"><button class="link use">Use</button><button class="link">Download zip</button><button class="link muted logbtn">Run log</button></div>
+        <pre class="log">11:30:02  model claude-opus-4-1 · 1 question · 2 docs (25,600 chars)
+11:30:19  speech 1,080 words · 5 [pause] · 2 [long pause]
+11:30:51  eleven v3 · voice Sarah · 8:03
+11:31:04  primer S1 Contact 3:00 + speech · music First Embers −18 dB
+11:31:07  mp3 11:05 written</pre>
+      </div>
+
+      <div class="run">
+        <div class="run-top"><span class="run-title">My brother<span class="vn">#11</span></span><span class="run-date">Sep 6, 18:20</span></div>
+        <div class="mini"><button class="play">▶</button><div class="bar"><i></i></div><span class="dur">10:12</span></div>
+        <div class="tags"><button class="tag rej on">Reject</button><button class="tag good">Good</button><button class="tag best">Best so far</button></div>
+        <div class="comment"><div class="saved">Opens on a scene, collides with the primer.</div></div>
+        <div class="run-actions"><button class="link use">Use</button><button class="link">Download zip</button><button class="link muted logbtn">Run log</button></div>
+        <pre class="log">18:20:40  model claude-opus-4-1 · 1 question · 2 docs (24,000 chars)
+18:20:58  speech 990 words · 4 [pause] · 2 [long pause]
+18:21:30  eleven v3 · voice Sarah · 7:10
+18:21:44  primer S2 Weight 3:00 + speech · music Low Tide −20 dB
+18:21:47  mp3 10:12 written</pre>
+      </div>
+    </div>
+
+    <div class="tabpane" id="published">
+      <div class="pub">
+        <div class="pub-title">Enough money<span class="vn">#9</span></div>
+        <div class="pub-by">by Felix</div>
+        <div class="pub-nums">
+          <div><b>14</b><small>signed up</small></div>
+          <div><b>9</b><small>played</small></div>
+          <div class="chills"><b>5</b><small>got chills</small></div>
         </div>
-        <div class="p-row"><span class="url-pill">rw.link/p/k3f9</span><button class="copy">Copy</button><button class="copy">Open</button></div>
-        <details class="runlog"><summary>What's in it</summary><div class="body">
-          <div class="kv"><span class="k">Q1</span><span class="v">What do you want to meditate about</span></div>
-          <div class="kv"><span class="k">model</span><span class="v">claude-opus-4-8</span></div>
-          <div class="kv"><span class="k">voice</span><span class="v">Cave narrator &middot; eleven v3</span></div>
-          <div class="kv"><span class="k">music</span><span class="v">First_Embers.mp3</span></div>
-          <div class="kv"><span class="k">mix</span><span class="v">&minus;14 dB &middot; fades 4s/8s</span></div>
-          <div class="kv"><span class="k">docs</span><span class="v">marcus_aurelius L &middot; heraclitus S &middot; style_laws S &middot; guided_imagery M</span></div>
-        </div></details>
-        <details class="runlog"><summary>Signups (14)</summary><div class="body">
-          <div class="su"><span class="n">sofia@&hellip;</span><span class="pl">2&times;</span><span class="d">26/08</span></div>
-          <div class="su"><span class="n">m.chen@&hellip;</span><span class="pl">1&times;</span><span class="d">25/08</span></div>
-          <div class="su"><span class="n">jbaptiste@&hellip;</span><span class="pl zero">0</span><span class="d">25/08</span></div>
-          <div class="su"><span class="n">ana&iuml;s.r@&hellip;</span><span class="pl">3&times;</span><span class="d">24/08</span></div>
-          <div class="su"><span style="text-decoration:underline;cursor:pointer;color:var(--muted)">show all 14</span></div>
-        </div></details>
+        <div class="pub-link"><a href="#" onclick="return false">rewire.bio/x/4k2p</a><button class="link muted copy">Copy</button><span style="color:var(--muted)">Sep 4</span></div>
+        <div class="pub-contents">
+          <b>Primer</b> S2 Weight · <b>Question</b> What do you want to make sense of right now? · <b>Model</b> claude-opus-4-1 · <b>Voice</b> Sarah, eleven v3 · <b>Music</b> First Embers −18 dB · <b>Docs</b> Seneca, Coué, Ignatius
+        </div>
+        <div class="people">
+          <div class="person"><span>Anna<span class="chip">Chills</span></span><span class="pd">Sep 8</span><span class="said">the room that had only what I needed</span></div>
+          <div class="person"><span>Lucía<span class="chip">Chills</span></span><span class="pd">Sep 7</span><span class="said">when it said the sentinel had not been told</span></div>
+          <div class="person"><span>Tom<span class="chip quiet">Played</span></span><span class="pd">Sep 7</span></div>
+          <div class="person"><span>Kim<span class="chip quiet">Signed up</span></span><span class="pd">Sep 6</span></div>
+          <div class="person"><span>Marcus<span class="chip">Chills</span></span><span class="pd">Sep 5</span><span class="said">walking around the table</span></div>
+        </div>
       </div>
-      <p class="hint" style="margin-top:4px">Visitors sign in with their ReWire account to try a protocol.</p>
     </div>
   </aside>
 
-  <div class="left-rail"><button id="histReopen" title="Open panel">&#9703;</button></div>
+  <!-- ================= COMPOSE ================= -->
+  <main class="compose">
+    <div class="title-row">
+      <input id="title" value="Enough money" placeholder="Name this experience" aria-label="Title">
+      <span class="vnum" id="vnum">#14</span>
+    </div>
+    <div class="by-row">by <button class="author default" id="authorBtn" title="Put your name instead">ReWire</button><span class="by-hint" id="byHint">Listeners see this name. Click it to use yours.</span></div>
 
-  <!-- ==================== COMPOSE ==================== -->
-  <main class="col compose">
+    <div class="sections" id="sections">
 
-    <details class="sec" open>
-      <summary>Questions</summary>
-      <div class="body">
-        <div id="qlist"></div>
-        <button class="addq" id="addq">+ Add question</button>
-      </div>
-    </details>
-
-    <details class="sec">
-      <summary>Music</summary>
-      <div class="body">
-        <div class="row-flex">
-          <button class="btn" style="flex:1" id="musicChoose">Choose a file</button>
-          <button class="btn" id="musicRemove">Remove</button>
-        </div>
-        <p class="hint mono" id="musicName"></p>
-        <input type="file" id="musicInput" accept="audio/*" hidden>
-      </div>
-    </details>
-
-    <details class="sec">
-      <summary>Prompt</summary>
-      <div class="body">
-        <div class="row2">
-          <div><label class="field-label">Model</label><select class="tselect tinput" id="modelSel"><option>claude-opus-4-8</option><option>claude-fable-5</option><option>claude-sonnet-4-6</option></select></div>
-          <div></div>
-        </div>
-        <details class="subdetails" open><summary>prompt.py &mdash; edit</summary><div class="body">
-          <textarea class="codebox" id="promptPy" placeholder="Paste the prompt file here"></textarea>
-        </div></details>
-
-        <div class="ctx-group">
-          <div class="g-name">Substance<button class="g-add" data-group="substance">+ Add doc</button></div>
-          <div id="ctx-substance"></div>
-        </div>
-        <div class="ctx-group">
-          <div class="g-name">Form<button class="g-add" data-group="form">+ Add doc</button></div>
-          <div id="ctx-form"></div>
-        </div>
-        <div class="ctx-group">
-          <div class="g-name">Technique<button class="g-add" data-group="technique">+ Add doc</button></div>
-          <div id="ctx-technique"></div>
-        </div>
-        <input type="file" id="ctxInput" accept=".pdf,.docx,.txt,.md" hidden>
-        <div class="budget">
-          <div class="nums"><span>context budget</span><span><b style="color:var(--ink)" id="ctxUsed">0k</b> / 80k</span></div>
-          <div class="bar"><div class="fill" id="ctxFill" style="width:0%"></div></div>
-          <p class="hint" style="margin-top:4px">small &le;10k &middot; medium &le;20k &middot; large &le;40k characters</p>
-        </div>
-      </div>
-    </details>
-
-    <details class="sec">
-      <summary>Voice</summary>
-      <div class="body">
-        <div class="row2">
-          <div><label class="field-label">Saved voice</label><select class="tselect tinput" id="voiceSel"></select></div>
-          <div><label class="field-label">Voice ID</label><input class="tinput mono" id="voiceId" placeholder="ElevenLabs voice id"></div>
-        </div>
-        <div class="row-flex">
-          <input class="tinput" id="voiceName" placeholder="Name this voice to save it">
-          <button class="btn" id="voiceSave">Save</button><button class="btn" id="voiceDelete">Delete</button>
-        </div>
-        <div class="row2">
-          <div><label class="field-label">TTS engine</label><select class="tselect tinput" id="engineSel"><option value="elevenlabs">eleven v3</option><option value="eleven_v2">eleven v2</option></select></div>
-          <div><label class="field-label">Stability / Style / Boost</label>
-            <div class="row-flex"><input class="tinput mono" id="stab" value="0.5"><input class="tinput mono" id="styleV" value="0"><select class="tselect tinput" id="boostSel"><option>on</option><option>off</option></select></div>
+      <!-- Primer -->
+      <section class="sec open" data-sec="primer">
+        <button class="sec-head"><span class="caret">▶</span>Primer<span class="sec-sum" id="primerSum">S1 Contact · 3 min</span></button>
+        <div class="sec-body">
+          <input class="search" id="primerSearch" placeholder="Search the primers">
+          <div class="tracks primers" id="primerList"></div>
+          <div class="row-between" style="align-items:center">
+            <span class="hint" style="margin:0">Plays before the speech, in the mp3 and in the published experience. About 3 minutes each.</span>
+            <button class="link muted" id="primerTextBtn">Text</button>
+          </div>
+          <div class="primer-text" id="primerText" hidden>
+            <textarea class="field" id="primerTextArea"></textarea>
+            <div class="row-end"><button class="link muted" id="primerSaveNew">Save as new primer</button></div>
           </div>
         </div>
-        <p class="hint mono" id="pauseHint">[pause] 3s &middot; [long pause] 6s &middot; break tags exact, stacking adds up</p>
-      </div>
-    </details>
+      </section>
 
-    <details class="sec">
-      <summary>Mix</summary>
-      <div class="body">
-        <div class="row2">
-          <div><label class="field-label">Voice / music balance</label><input class="tinput mono" id="balance" placeholder="-14 dB"></div>
-          <div><label class="field-label">Fade in / out</label><input class="tinput mono" id="fades" placeholder="4s / 8s"></div>
+      <!-- Questions -->
+      <section class="sec" data-sec="questions">
+        <button class="sec-head"><span class="caret">▶</span>Questions<span class="sec-sum" id="qSum">1 question</span></button>
+        <div class="sec-body">
+          <div id="qList">
+            <div class="q">
+              <input class="q-input" value="What do you want to make sense of right now?">
+              <textarea class="field q-answer" placeholder="Test answer">Money. I make enough now but I still check my account three times a day and I can’t buy anything without feeling guilty.</textarea>
+              <div class="row-between"><button class="link ai">Write an answer for me</button><button class="link muted rmq">Remove</button></div>
+            </div>
+          </div>
+          <div style="margin-top:10px"><button class="link" id="addQ">+ Add question</button></div>
         </div>
-        <div class="row2">
-          <div><label class="field-label">[pause]</label><input class="tinput mono" id="pauseS" value="3s"></div>
-          <div><label class="field-label">[long pause]</label><input class="tinput mono" id="longPauseS" value="6s"></div>
-        </div>
-        <p class="hint mono">break tags keep their stated length &middot; all become exact silence &middot; stacking adds up</p>
-        <button class="addq" id="addElement">+ Add element</button>
-        <details class="subdetails"><summary>mix.py &mdash; edit</summary><div class="body">
-          <textarea class="codebox" id="mixPy" placeholder="Paste a mix file, or leave empty for the bench default"></textarea>
-        </div></details>
-      </div>
-    </details>
+      </section>
 
-    <div class="row-flex">
-      <button class="btn" id="saveBtn" style="padding:9px 18px">Save</button>
-      <button class="btn primary genbtn" id="genText" style="flex:1">Generate text</button>
+      <!-- Prompt -->
+      <section class="sec" data-sec="prompt">
+        <button class="sec-head"><span class="caret">▶</span>Prompt<span class="sec-sum" id="promptSum">claude-opus-4-1 · 3 docs</span></button>
+        <div class="sec-body">
+          <div class="row">
+            <label>Model</label>
+            <select id="model"><option>claude-opus-4-1</option><option>claude-sonnet-4-5</option><option>gpt-5</option></select>
+          </div>
+          <textarea class="field mono" id="prompt">You write guided meditations for adults who want to make sense of one thing in their life. Read the listener’s answer.
+
+Write a spoken piece of about eight minutes at a slow pace. Open on the body, since a somatic primer plays first. Move into one concrete image drawn from the answer. Use the selected passages for substance and never quote them. Close on the body.
+
+Use [pause] between ideas and [long pause] after each image. Plain words, short sentences, second person.</textarea>
+          <div class="hint">Plain text. The PROMPT wrapper is added for you.</div>
+
+          <div class="docs" id="docs">
+            <div class="dg substance">
+              <div class="dg-head">Substance</div>
+              <label><input type="checkbox" checked data-chars="18400"> Seneca, Letters to Lucilius <span class="size"><b>m</b>edium</span></label>
+              <label><input type="checkbox" data-chars="9100"> Marcus Aurelius, Meditations <span class="size"><b>s</b>mall</span></label>
+              <label><input type="checkbox" data-chars="38000"> Thoreau, Walden <span class="size"><b>l</b>arge</span></label>
+            </div>
+            <div class="dg form">
+              <div class="dg-head">Form</div>
+              <label><input type="checkbox" checked data-chars="7200"> Émile Coué, Self mastery <span class="size"><b>s</b>mall</span></label>
+              <label><input type="checkbox" data-chars="15600"> Annie Payson Call, Power through repose <span class="size"><b>m</b>edium</span></label>
+            </div>
+            <div class="dg technique">
+              <div class="dg-head">Technique</div>
+              <label><input type="checkbox" checked data-chars="16300"> Ignatius, Spiritual exercises <span class="size"><b>m</b>edium</span></label>
+              <label><input type="checkbox" data-chars="8800"> Jacobson, Progressive relaxation <span class="size"><b>s</b>mall</span></label>
+            </div>
+            <div class="budget">
+              <div class="bar" id="budgetBar"><i></i></div>
+              <div class="num"><span id="budgetNum">41,900 / 80,000 chars</span><span>small 10k · medium 20k · large 40k</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Voice -->
+      <section class="sec" data-sec="voice">
+        <button class="sec-head"><span class="caret">▶</span>Voice<span class="sec-sum" id="voiceSum">Sarah · eleven v3</span></button>
+        <div class="sec-body">
+          <div class="grid">
+            <div class="f"><span>Engine</span><select id="engine"><option>eleven v3</option><option>eleven multilingual v2</option></select></div>
+            <div class="f"><span>Voice</span><select id="voice"><option>Sarah</option><option>Felix</option><option>Marcus</option><option>Anna</option></select></div>
+            <div class="f"><span>Stability</span><input class="mono" value="0.45"></div>
+            <div class="f"><span>Similarity</span><input class="mono" value="0.80"></div>
+            <div class="f"><span>Style</span><input class="mono" value="0.20"></div>
+            <div class="f"><span>Speed</span><input class="mono" value="0.92"></div>
+          </div>
+          <div class="hint" style="margin-top:10px">eleven v3 reads [pause] and [long pause]. Their lengths are set in Mix.</div>
+        </div>
+      </section>
+
+      <!-- Music -->
+      <section class="sec" data-sec="music">
+        <button class="sec-head"><span class="caret">▶</span>Music<span class="sec-sum" id="musicSum">First Embers · 12:10</span></button>
+        <div class="sec-body">
+          <input class="search" id="trackSearch" placeholder="Search the library">
+          <div class="tracks" id="tracks">
+            <label class="track selected"><input type="radio" name="track" checked><span class="t-name">First Embers</span><span class="t-feel">warm, slow</span><span class="t-dur">12:10</span><button class="play">▶</button></label>
+            <label class="track"><input type="radio" name="track"><span class="t-name">Low Tide</span><span class="t-feel">open, still</span><span class="t-dur">9:48</span><button class="play">▶</button></label>
+            <label class="track"><input type="radio" name="track"><span class="t-name">Cathedral of Pines</span><span class="t-feel">wide, hushed</span><span class="t-dur">14:02</span><button class="play">▶</button></label>
+            <label class="track"><input type="radio" name="track"><span class="t-name">Slow Weather</span><span class="t-feel">grey, patient</span><span class="t-dur">11:30</span><button class="play">▶</button></label>
+            <label class="track"><input type="radio" name="track"><span class="t-name">Salt Air</span><span class="t-feel">bright, quiet</span><span class="t-dur">8:55</span><button class="play">▶</button></label>
+            <label class="track"><input type="radio" name="track"><span class="t-name">Quiet Engine</span><span class="t-feel">steady, low</span><span class="t-dur">10:20</span><button class="play">▶</button></label>
+            <label class="track"><input type="radio" name="track"><span class="t-name">Long Field</span><span class="t-feel">soft, even</span><span class="t-dur">13:15</span><button class="play">▶</button></label>
+          </div>
+          <div class="hint" style="margin-top:8px">The track loops under the whole mp3 and is cut with the fade out.</div>
+        </div>
+      </section>
+
+      <!-- Mix -->
+      <section class="sec" data-sec="mix">
+        <button class="sec-head"><span class="caret">▶</span>Mix<span class="sec-sum">[pause] 3 s · [long pause] 6 s</span></button>
+        <div class="sec-body">
+          <div class="grid">
+            <div class="f"><span>Music</span><input class="mono" value="−18 dB"></div>
+            <div class="f"><span>Voice</span><input class="mono" value="0 dB"></div>
+            <div class="f"><span>Fade in</span><input class="mono" value="6 s"></div>
+            <div class="f"><span>Fade out</span><input class="mono" value="10 s"></div>
+            <div class="f"><span>After primer</span><input class="mono" value="4 s"></div>
+            <div class="f"><span>[pause]</span><input class="mono" value="3 s"></div>
+            <div class="f"><span>[long pause]</span><input class="mono" value="6 s"></div>
+            <div class="f"><span>break tags</span><span style="font-family:var(--mono);font-size:12px;color:var(--ink)">as stated</span></div>
+          </div>
+          <div class="elements" id="elements">
+            <div class="el"><span>Rain, far</span><span class="t-dur">−28 dB</span><button class="link muted rm">Remove</button></div>
+          </div>
+          <button class="link" id="addEl">+ Add element</button>
+          <details class="mixpy">
+            <summary>mix.py</summary>
+            <textarea class="field mono">def mix(primer, speech, music, cfg):
+    gap = silence(cfg.after_primer)
+    voice = concat([primer, gap, speech])
+    voice = expand_pauses(voice, pause=cfg.pause, long=cfg.long_pause)  # Li
+    bed = loop(music, len(voice)).gain(cfg.music_db)
+    bed = fade(bed, cfg.fade_in, cfg.fade_out)
+    for el in cfg.elements:
+        bed = overlay(bed, loop(el.file, len(voice)).gain(el.db))
+    return overlay(bed, voice.gain(cfg.voice_db))</textarea>
+          </details>
+        </div>
+      </section>
+
     </div>
 
+    <div class="compose-foot">
+      <button class="btn ghost" id="save">Save</button>
+      <button class="btn primary" id="genText">Generate text</button>
+    </div>
   </main>
 
-  <!-- ==================== SPEECH ==================== -->
-  <section class="col doc">
+  <!-- ================= DOC ================= -->
+  <section class="doc-panel">
     <div class="doc-head">
-      <span class="title">Speech</span>
-      <span class="meta" id="docMeta">no run yet</span>
-      <div class="right">
-        <span class="edit-pill" id="chgcount">0 changes &middot; 0 marks</span>
-        <button class="btn primary btn small" id="updatePrompt">Update prompt</button>
-      </div>
+      <div class="doc-title"><span id="docTitle">Enough money</span><span class="vn" id="docV">#14</span></div>
+      <button class="btn small" id="updatePrompt" disabled>Update prompt</button>
     </div>
-    <div class="doc-body" id="docBody">
-      <div class="gen-dots"><i></i><i></i><i></i><div style="margin-top:8px">generating speech</div></div>
-      <div class="page" contenteditable="true" spellcheck="false" id="page"></div>
+    <div class="doc-wrap" id="docWrap">
+      <div class="status" id="status"></div>
+      <div class="doc-inner">
+        <div class="doc" id="doc"><p class="empty">Answer the question, then generate the text. It appears here, and you can mark it up and edit it.</p></div>
+        <div class="gutter" id="gutter"></div>
+      </div>
     </div>
     <div class="doc-foot">
       <div class="foot-row">
-        <p class="hint">Select text to mark it good or bad and comment. Typing shows in red. Update prompt rewrites the prompt from all of it.</p>
-        <button class="btn" id="genmp3">Generate mp3</button>
-      </div>
-      <div id="mp3row">
-        <div class="player" id="docPlayer"><button class="play">&#9654;</button><div class="track"></div><span class="t">0:00 / 0:00</span></div>
-        <div class="foot-row">
-          <p class="hint">Publishing creates a public page with a tiny url where people answer the questions.</p>
-          <button class="btn primary" id="publish">Publish</button>
+        <button class="btn primary" id="genMp3" disabled style="opacity:.45">Generate mp3</button>
+        <div class="player" id="player">
+          <button class="play" id="bigPlay">▶</button>
+          <div class="timeline" id="timeline">
+            <div class="seg primer"></div><div class="seg speech"></div><div class="head"></div>
+            <span class="lbl p">primer 3:00</span><span class="lbl s">speech 8:40</span>
+          </div>
+          <span class="dur">11:42</span>
         </div>
-        <div class="pub-done" id="pubdone">Published<span class="url-pill">rw.link/p/x7f2</span><button class="copy btn small">Copy</button></div>
+        <button class="btn publish" id="publish" hidden>Publish</button>
+      </div>
+      <div class="published-box" id="pubBox">
+        <span class="ok">Published</span>
+        <a href="#" onclick="return false" id="pubLink">rewire.bio/x/7q3m</a>
+        <button class="link muted copy">Copy link</button>
+        <a class="link muted" id="pubOpen" href="rewire-experience.html" target="_blank" rel="noopener">Open</a>
       </div>
     </div>
   </section>
-
 </div>
 
+<!-- selection popover -->
 <div class="pop" id="pop">
-  <button class="thumb" id="thumbUp">&#128077;</button>
-  <button class="thumb" id="thumbDown">&#128078;</button>
-  <input id="popComment" placeholder="Comment">
-  <button class="btn small primary" id="popSave">Save</button>
+  <button data-k="good" title="Good">👍</button>
+  <button data-k="bad" title="Not this">👎</button>
+  <input id="popNote" placeholder="Say why">
+  <button class="save" id="popSave">Save</button>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-// ---------------- api ----------------
-async function apiGet(url){
-  const r = await fetch(url);
-  if(!r.ok) throw new Error(await errText(r));
-  return r.json();
-}
-async function apiJson(url, body, method){
-  const r = await fetch(url, {method: method || 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
-  if(!r.ok) throw new Error(await errText(r));
-  return r.json();
-}
-async function apiForm(url, formData){
-  const r = await fetch(url, {method: 'POST', body: formData});
-  if(!r.ok) throw new Error(await errText(r));
-  return r.json();
-}
-async function apiDelete(url){
-  const r = await fetch(url, {method: 'DELETE'});
-  if(!r.ok) throw new Error(await errText(r));
-  return r.json();
-}
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),2200)}
+
+/* ---- api ---- */
 async function errText(r){
-  // read the body once as text, then try json, so a non json error page is not lost
-  let body = '';
-  try{ body = await r.text(); }catch(_){}
-  try{
-    const d = JSON.parse(body);
-    if(d && d.detail) return d.detail;
-    if(d) return JSON.stringify(d);
-  }catch(_){}
-  const label = r.statusText ? r.status + ' ' + r.statusText : String(r.status);
-  if(r.status === 502 || r.status === 503 || r.status === 504){
-    return label + ': the server did not reply. the worker was most likely killed part way through, '
-      + 'so nothing was written to the run log. long speeches and long music tracks make this more likely.';
+  let body='';
+  try{ body=await r.text(); }catch(_){}
+  try{ const d=JSON.parse(body); if(d&&d.detail)return d.detail; if(d)return JSON.stringify(d); }catch(_){}
+  const label=r.statusText?r.status+' '+r.statusText:String(r.status);
+  if(r.status===502||r.status===503||r.status===504){
+    return label+': the server did not reply. the worker was most likely killed part way through, '
+      +'so nothing was written to the run log.';
   }
-  const snippet = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
-  return snippet ? label + ': ' + snippet : label;
+  const snippet=body.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
+  return snippet?label+': '+snippet:label;
 }
-function esc(text){
-  const d = document.createElement('div'); d.textContent = text == null ? '' : String(text); return d.innerHTML;
-}
+async function apiGet(u){const r=await fetch(u);if(!r.ok)throw new Error(await errText(r));return r.json()}
+async function apiJson(u,b,m){const r=await fetch(u,{method:m||'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(!r.ok)throw new Error(await errText(r));return r.json()}
+async function apiForm(u,fd){const r=await fetch(u,{method:'POST',body:fd});if(!r.ok)throw new Error(await errText(r));return r.json()}
+async function apiDelete(u){const r=await fetch(u,{method:'DELETE'});if(!r.ok)throw new Error(await errText(r));return r.json()}
+function esc(t){const d=document.createElement('div');d.textContent=t==null?'':String(t);return d.innerHTML}
 
-// ---------------- state ----------------
-const state = {
-  questions: [{question: 'What do you want to meditate about', answer: ''}],
-  model: 'claude-opus-4-8',
-  contextSelected: [],
-  engine: 'elevenlabs',
-  musicRef: '', musicName: '',
-  experimentId: 0, dayNumber: 1, originalSpeech: ''
+/* reads the unlabelled grid inputs by the label beside them */
+function fieldInput(sec,label){
+  const body=$(`[data-sec=${sec}] .sec-body`);
+  if(!body)return null;
+  for(const f of body.querySelectorAll('.f')){
+    const span=f.querySelector('span');
+    if(span&&span.textContent.trim()===label)return f.querySelector('input,select');
+  }
+  return null;
+}
+function numOf(input,fallback){
+  if(!input)return fallback;
+  const cleaned=String(input.value).replace(/\u2212/g,'-').replace(/[^0-9.\-]/g,'');
+  const n=parseFloat(cleaned);
+  return isNaN(n)?fallback:n;
+}
+function fmtTime(s){s=Math.max(0,Math.round(s||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+
+/* ---- state ---- */
+const state={experienceId:0,experimentId:0,ver:1,author:'ReWire',
+             primers:[],tracks:[],voices:[],docs:[],runs:[],published:[],
+             primerId:'',trackId:0,publishedUrl:''};
+let player=null;
+
+/* ---- panel ---- */
+$('#closePanel').onclick=()=>{$('#panel').hidden=true;$('#rail').hidden=false};
+$('#rail').onclick=()=>{$('#panel').hidden=false;$('#rail').hidden=true};
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id===t.dataset.tab))});
+
+/* ---- title + version ---- */
+let ver=1;
+function showVer(){$('#vnum').textContent='#'+ver}
+$('#title').addEventListener('input',e=>{$('#docTitle').textContent=e.target.value||'Untitled'});
+
+/* ---- author ---- */
+let author='ReWire';
+function renderAuthor(){const b=$('#authorBtn');b.textContent=author;b.classList.toggle('default',author==='ReWire');$('#byHint').hidden=author!=='ReWire';updateOpen()}
+function updateOpen(){const a=$('#pubOpen');if(a)a.href=state.publishedUrl||'#'}
+$('#authorBtn').onclick=()=>{const b=$('#authorBtn');const inp=document.createElement('input');inp.className='author-input';inp.placeholder='Your name';inp.value=author==='ReWire'?'':author;
+  const done=()=>{author=inp.value.trim()||'ReWire';state.author=author;inp.replaceWith(b);renderAuthor()};
+  inp.onblur=done;inp.onkeydown=e=>{if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();inp.blur()}};b.replaceWith(inp);inp.focus()};
+renderAuthor();
+
+/* ---- new experience ---- */
+$('#newExp').onclick=()=>{
+  state.experienceId=0;state.experimentId=0;state.publishedUrl='';
+  $('#title').value='';$('#docTitle').textContent='Untitled';ver=1;showVer();$('#docV').textContent='';
+  $('#qList').innerHTML=`<div class="q"><input class="q-input" value="What do you want to make sense of right now?"><textarea class="field q-answer" placeholder="Test answer"></textarea><div class="row-between"><button class="link ai">Write an answer for me</button><button class="link muted rmq">Remove</button></div></div>`;qCount();
+  const doc=$('#doc');doc.contentEditable='false';doc.innerHTML='<p class="empty">Answer the question, then generate the text. It appears here, and you can mark it up and edit it.</p>';$('#gutter').innerHTML='';
+  $('#updatePrompt').disabled=true;const b=$('#genMp3');b.disabled=true;b.style.opacity='.45';$('#player').classList.remove('on');$('#publish').hidden=true;$('#publish').textContent='Publish';$('#publish').style.opacity='';$('#pubBox').classList.remove('on');
+  $$('.sec').forEach(x=>x.classList.remove('open'));$('[data-sec=primer]').classList.add('open');
+  $('#panel').hidden=true;$('#rail').hidden=false;$('#title').focus();toast('New experience. Name it, then pick a primer and set the question.');
 };
-let musicUpload = null;
-let contextDocs = [];
-let voices = [];
-let experiments = [];
-let seqById = {};
-let filterTag = 'all';
 
-const el = id => document.getElementById(id);
+/* ---- accordion ---- */
+$$('.sec-head').forEach(h=>h.onclick=()=>{const s=h.parentElement;const open=s.classList.contains('open');$$('.sec').forEach(x=>x.classList.remove('open'));if(!open)s.classList.add('open')});
 
-// ---------------- number parsing, inputs accept "3s", "-14 dB", "4s / 8s" ----------------
-function firstNumber(text){
-  const m = String(text || '').match(/-?\d+(\.\d+)?/);
-  return m ? parseFloat(m[0]) : null;
-}
-function twoNumbers(text){
-  const m = String(text || '').match(/-?\d+(\.\d+)?/g);
-  if(!m) return [null, null];
-  return [parseFloat(m[0]), m.length > 1 ? parseFloat(m[1]) : null];
-}
-function pauseToMs(text, fallbackMs){
-  const n = firstNumber(text);
-  return n == null ? fallbackMs : Math.round(n * 1000);
+/* ---- audio ---- */
+function stopPlayer(){if(player){player.pause();player=null}$$('.play').forEach(b=>{if(b.textContent==='\u275a\u275a')b.textContent='\u25b6'});$$('.bar').forEach(b=>b.classList.remove('playing'));$$('.timeline').forEach(t=>t.classList.remove('playing'))}
+function playUrl(url,button){
+  const wasSame=player&&player._url===url;
+  stopPlayer();
+  if(wasSame)return;
+  player=new Audio(url);player._url=url;
+  player.onended=()=>stopPlayer();
+  player.onerror=()=>{toast('could not play that audio');stopPlayer()};
+  player.play().catch(()=>{toast('could not play that audio');stopPlayer()});
+  if(button)button.textContent='\u275a\u275a';
 }
 
-// ---------------- questions ----------------
-function renderQuestions(){
-  const wrap = el('qlist');
-  wrap.innerHTML = '';
-  state.questions.forEach((qa, index) => {
-    const d = document.createElement('div'); d.className = 'q';
-    d.innerHTML = '<div class="q-line"><span class="q-num">Q' + (index + 1) + '</span>'
-      + '<span class="q-text" contenteditable="true" spellcheck="false"></span>'
-      + (index > 0 ? '<button class="q-x">&times;</button>' : '') + '</div>'
-      + '<div class="answer-wrap"><textarea class="tarea" placeholder="Your test answer"></textarea>'
-      + '<button class="autogen">&#10022; Write it for me</button></div>';
-    d.querySelector('.q-text').textContent = qa.question;
-    d.querySelector('.tarea').value = qa.answer;
-    d.querySelector('.q-text').addEventListener('input', e => { qa.question = e.target.textContent; });
-    d.querySelector('.tarea').addEventListener('input', e => { qa.answer = e.target.value; });
-    const x = d.querySelector('.q-x');
-    if(x) x.addEventListener('click', () => { state.questions.splice(index, 1); renderQuestions(); });
-    d.querySelector('.autogen').addEventListener('click', async e => {
-      const btn = e.currentTarget;
-      const question = qa.question.trim();
-      if(!question){ alert('write the question first'); return; }
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Writing';
-      try{
-        const out = await apiJson('/api/bench/autogen_answer', {question});
-        qa.answer = out.answer;
-        d.querySelector('.tarea').value = out.answer;
-      }catch(err){ alert(err.message); }
-      btn.disabled = false; btn.innerHTML = '&#10022; Write it for me';
-    });
-    wrap.appendChild(d);
-  });
-}
-el('addq').addEventListener('click', () => {
-  state.questions.push({question: 'New question', answer: ''});
-  renderQuestions();
-});
-
-// ---------------- music ----------------
-el('musicChoose').addEventListener('click', () => el('musicInput').click());
-el('musicInput').addEventListener('change', () => {
-  const f = el('musicInput').files[0];
-  if(!f) return;
-  musicUpload = f;
-  state.musicRef = ''; state.musicName = f.name;
-  renderMusic();
-});
-el('musicRemove').addEventListener('click', () => {
-  musicUpload = null; state.musicRef = ''; state.musicName = '';
-  el('musicInput').value = '';
-  renderMusic();
-});
-function renderMusic(){
-  el('musicName').textContent = state.musicName || 'no music, voice goes over silence or the mix default';
-}
-
-// ---------------- context ----------------
-async function loadContext(){
-  const out = await apiGet('/api/bench/context');
-  contextDocs = out.context;
-  renderContext();
-}
-function renderContext(){
-  for(const group of ['substance', 'form', 'technique']){
-    const wrap = el('ctx-' + group);
-    wrap.innerHTML = '';
-    contextDocs.filter(d => d.kind === group).forEach(doc => {
-      const label = document.createElement('label'); label.className = 'doc-row';
-      const letter = doc.size_class ? doc.size_class[0].toUpperCase() : 'S';
-      label.innerHTML = '<input type="checkbox">'
-        + '<span class="fname">' + esc(doc.name) + '</span>'
-        + '<span class="size"><b>' + letter + '</b>' + esc(doc.size_class) + '</span>'
-        + '<span class="kb">' + Math.round(doc.chars / 1000) + 'k</span>'
-        + '<button class="q-x" title="Delete doc">&times;</button>';
-      const box = label.querySelector('input');
-      box.checked = state.contextSelected.includes(doc.id);
-      box.addEventListener('change', () => {
-        if(box.checked) state.contextSelected.push(doc.id);
-        else state.contextSelected = state.contextSelected.filter(i => i !== doc.id);
-        updateBudget();
-      });
-      label.querySelector('.q-x').addEventListener('click', async e => {
-        e.preventDefault();
-        if(!confirm('delete ' + doc.name + '?')) return;
-        try{ await apiDelete('/api/bench/context/' + doc.id); }catch(err){ alert(err.message); return; }
-        state.contextSelected = state.contextSelected.filter(i => i !== doc.id);
-        loadContext().then(updateBudget);
-      });
-      wrap.appendChild(label);
-    });
-  }
-  updateBudget();
-}
-let ctxGroup = 'substance';
-document.querySelectorAll('.g-add').forEach(btn => btn.addEventListener('click', () => {
-  ctxGroup = btn.dataset.group;
-  el('ctxInput').click();
-}));
-el('ctxInput').addEventListener('change', async () => {
-  const f = el('ctxInput').files[0];
-  if(!f) return;
-  const fd = new FormData();
-  fd.append('kind', ctxGroup);
-  fd.append('file', f);
+/* ---- primer library ---- */
+let PRIMERS=[];let primerId='';
+function renderPrimers(){const box=$('#primerList');box.innerHTML='';let fam='';
+  PRIMERS.forEach(pr=>{if(pr.family!==fam){fam=pr.family;const h=document.createElement('div');h.className='fam';h.textContent=fam;box.appendChild(h)}
+    const l=document.createElement('label');l.className='track prim'+(pr.id===primerId?' selected':'');l.dataset.id=pr.id;
+    l.innerHTML=`<input type="radio" name="primer" ${pr.id===primerId?'checked':''}><span class="t-code">${esc(pr.id)}</span><span class="t-name">${esc(pr.name)}<small>${esc(pr.subtitle)}</small></span><button class="play">\u25b6</button>`;
+    l.querySelector('input').onchange=()=>selectPrimer(pr.id);
+    l.querySelector('.play').onclick=e=>{e.preventDefault();e.stopPropagation();previewPrimer(pr.id,e.target)};
+    box.appendChild(l)})}
+function selectPrimer(id){primerId=id;state.primerId=id;const pr=PRIMERS.find(p=>p.id===id);if(!pr)return;
+  $$('.track.prim').forEach(t=>t.classList.toggle('selected',t.dataset.id===id));
+  $('#primerSum').textContent=pr.id+' '+pr.name+(pr.duration?' \u00b7 '+pr.duration:'');$('#primerTextArea').value=pr.text}
+async function previewPrimer(id,button){
+  const voice=$('#voice').value;
+  if(!voice){toast('pick a voice first');return}
+  const label=button.textContent;button.textContent='\u2026';
   try{
-    const doc = await apiForm('/api/bench/context', fd);
-    state.contextSelected.push(doc.id);
-    await loadContext();
-  }catch(err){ alert(err.message); }
-  el('ctxInput').value = '';
-});
-function updateBudget(){
-  let total = 0;
-  for(const doc of contextDocs){
-    if(state.contextSelected.includes(doc.id)) total += doc.chars;
-  }
-  const used = el('ctxUsed');
-  used.textContent = Math.round(total / 1000) + 'k';
-  const over = total > 80000;
-  used.style.color = over ? 'var(--red)' : 'var(--ink)';
-  const fill = el('ctxFill');
-  fill.style.width = Math.min(100, total / 800) + '%';
-  fill.style.background = over ? 'var(--red)' : 'var(--ink)';
+    const d=await apiJson('/api/bench/primers/render',{primer_id:id,voice_id:voice,
+      stability:numOf(fieldInput('voice','Stability'),0.45),
+      similarity:numOf(fieldInput('voice','Similarity'),0.80),
+      style:numOf(fieldInput('voice','Style'),0.20),
+      boost:true,tts_provider:engineValue()});
+    const pr=PRIMERS.find(p=>p.id===id);if(pr)pr.duration=d.duration;
+    if(id===primerId)$('#primerSum').textContent=pr.id+' '+pr.name+' \u00b7 '+d.duration;
+    button.textContent=label;playUrl(d.url,button);
+  }catch(err){button.textContent=label;alert(err.message)}
 }
+$('#primerSearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase();$$('.track.prim').forEach(t=>t.classList.toggle('hide',!t.textContent.toLowerCase().includes(q)))});
+$('#primerTextBtn').onclick=()=>{const t=$('#primerText');t.hidden=!t.hidden;$('#primerTextBtn').textContent=t.hidden?'Text':'Hide text'};
+$('#primerSaveNew').onclick=async()=>{
+  try{
+    const made=await apiJson('/api/bench/primers',{from_id:primerId,text:$('#primerTextArea').value});
+    await loadPrimers();primerId=made.id;renderPrimers();selectPrimer(made.id);
+    toast('Saved as '+made.id+' under Yours.');
+  }catch(err){alert(err.message)}
+};
+async function loadPrimers(){const d=await apiGet('/api/bench/primers');PRIMERS=d.primers;state.primers=d.primers}
 
-// ---------------- voices ----------------
+/* ---- questions ---- */
+function qCount(){const n=$$('#qList .q').length;$('#qSum').textContent=n+(n===1?' question':' questions')}
+$('#addQ').onclick=()=>{
+  const d=document.createElement('div');d.className='q';
+  d.innerHTML=`<input class="q-input" placeholder="Write the question"><textarea class="field q-answer" placeholder="Test answer"></textarea><div class="row-between"><button class="link ai">Write an answer for me</button><button class="link muted rmq">Remove</button></div>`;
+  $('#qList').appendChild(d);d.querySelector('.q-input').focus();qCount();
+};
+function questions(){return $$('#qList .q').map(q=>({question:q.querySelector('.q-input').value.trim(),answer:q.querySelector('.q-answer').value.trim()}))}
+document.addEventListener('click',async e=>{
+  const ai=e.target.closest('.ai');
+  if(ai){const q=ai.closest('.q');const ta=q.querySelector('.q-answer');const question=q.querySelector('.q-input').value.trim();
+    if(!question){toast('write the question first');return}
+    ai.innerHTML='<span class="spin"></span>Writing an answer to \u201c'+esc(question.slice(0,28))+(question.length>28?'\u2026':'')+'\u201d';ai.style.pointerEvents='none';
+    try{const d=await apiJson('/api/bench/autogen_answer',{question});ta.value=d.answer}
+    catch(err){alert(err.message)}
+    ai.textContent='Write an answer for me';ai.style.pointerEvents='';return}
+  const rm=e.target.closest('.rmq');if(rm){if($$('#qList .q').length>1){rm.closest('.q').remove();qCount()}else toast('Keep at least one question.')}
+});
+
+/* ---- docs ---- */
+async function loadDocs(){
+  const d=await apiGet('/api/bench/context');state.docs=d.context;
+  const box=$('#docs');box.innerHTML='';
+  d.groups.forEach(group=>{
+    const items=d.context.filter(x=>(x.kind||'substance')===group);
+    const div=document.createElement('div');div.className='dg '+group;
+    div.innerHTML='<div class="dg-head">'+group.charAt(0).toUpperCase()+group.slice(1)+'</div>';
+    items.forEach(doc=>{
+      const cls=doc.size_class||'small';
+      const label=document.createElement('label');
+      label.innerHTML=`<input type="checkbox" data-chars="${doc.chars}" data-id="${doc.id}"> ${esc(doc.name)} <span class="size"><b>${cls[0]}</b>${cls.slice(1)}</span>`;
+      label.querySelector('input').onchange=budget;
+      div.appendChild(label);
+    });
+    box.appendChild(div);
+  });
+  budget();
+}
+function budget(){let s=0,n=0;$$('#docs input[type=checkbox]').forEach(c=>{if(c.checked){s+=+c.dataset.chars;n++}});
+  const bar=$('#budgetBar');bar.querySelector('i').style.width=Math.min(100,s/800)+'%';bar.classList.toggle('over',s>80000);
+  $('#budgetNum').textContent=s.toLocaleString('en-US')+' / 80,000 chars';$('#promptSum').textContent=$('#model').value+' \u00b7 '+n+' docs'}
+function contextIds(){return $$('#docs input:checked').map(c=>c.dataset.id).join(',')}
+$('#model').onchange=budget;
+
+/* ---- voice ---- */
+function engineValue(){return $('#engine').value.indexOf('v2')>-1?'eleven_v2':'elevenlabs'}
+function voiceSum(){const sel=$('#voice');const name=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].textContent:'';$('#voiceSum').textContent=name+' \u00b7 '+$('#engine').value}
+$('#voice').onchange=voiceSum;$('#engine').onchange=voiceSum;
 async function loadVoices(){
-  const out = await apiGet('/api/bench/voices');
-  voices = out.voices;
-  renderVoices();
+  const d=await apiGet('/api/bench/voices');state.voices=d.voices;
+  const sel=$('#voice');sel.innerHTML='';
+  d.voices.forEach(v=>{const o=document.createElement('option');o.value=v.voice_id;o.textContent=v.name;sel.appendChild(o)});
+  voiceSum();
 }
-function renderVoices(){
-  const sel = el('voiceSel');
-  const current = el('voiceId').value.trim();
-  sel.innerHTML = '';
-  for(const v of voices){
-    const opt = document.createElement('option');
-    opt.value = v.voice_id; opt.textContent = v.name;
-    sel.appendChild(opt);
+
+/* ---- music ---- */
+async function loadMusic(){
+  const d=await apiGet('/api/bench/music');state.tracks=d.tracks;
+  const box=$('#tracks');box.innerHTML='';let theme='';
+  d.tracks.forEach(tr=>{
+    if(tr.theme!==theme){theme=tr.theme;const h=document.createElement('div');h.className='fam';h.textContent=theme;box.appendChild(h)}
+    const l=document.createElement('label');l.className='track'+(tr.id===state.trackId?' selected':'');l.dataset.id=tr.id;
+    l.innerHTML=`<input type="radio" name="track" ${tr.id===state.trackId?'checked':''}><span class="t-name">${esc(tr.name)}</span><span class="t-feel">${esc(tr.made_on)}</span><span class="t-dur">${esc(tr.duration)}</span><button class="play">\u25b6</button>`;
+    l.querySelector('input').onchange=()=>selectTrack(tr.id);
+    l.querySelector('.play').onclick=e=>{e.preventDefault();e.stopPropagation();playUrl(tr.url,e.target)};
+    box.appendChild(l);
+  });
+}
+function selectTrack(id){state.trackId=id;const tr=state.tracks.find(t=>t.id===id);if(!tr)return;
+  $$('#tracks .track').forEach(t=>t.classList.toggle('selected',+t.dataset.id===id));
+  $('#musicSum').textContent=tr.name+' \u00b7 '+tr.duration}
+$('#trackSearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase();$$('#tracks .track').forEach(t=>t.classList.toggle('hide',!t.textContent.toLowerCase().includes(q)))});
+
+/* ---- mix elements ---- */
+const els=['Wind, low','Fire, close','Night insects','Room tone'];
+$('#addEl').onclick=()=>{const name=els.shift();if(!name){toast('No more elements in the library.');return}const d=document.createElement('div');d.className='el';d.innerHTML=`<span>${name}</span><span class="t-dur">\u221230 dB</span><button class="link muted rm">Remove</button>`;$('#elements').appendChild(d)};
+document.addEventListener('click',e=>{const rm=e.target.closest('.el .rm');if(rm)rm.closest('.el').remove()});
+
+/* ---- compose state ---- */
+function composeState(){
+  return {title:$('#title').value,author:author,experienceId:state.experienceId,
+    questions:questions(),model:$('#model').value,prompt:$('#prompt').value,
+    contextIds:contextIds(),primerId:primerId,voiceId:$('#voice').value,engine:$('#engine').value,
+    stability:numOf(fieldInput('voice','Stability'),0.45),
+    similarity:numOf(fieldInput('voice','Similarity'),0.80),
+    style:numOf(fieldInput('voice','Style'),0.20),
+    speed:numOf(fieldInput('voice','Speed'),0.92),
+    trackId:state.trackId,mixPy:$('.mixpy textarea')?$('.mixpy textarea').value:'',
+    musicDb:numOf(fieldInput('mix','Music'),-18),voiceDb:numOf(fieldInput('mix','Voice'),0),
+    fadeIn:numOf(fieldInput('mix','Fade in'),6),fadeOut:numOf(fieldInput('mix','Fade out'),10),
+    afterPrimer:numOf(fieldInput('mix','After primer'),4),
+    pause:numOf(fieldInput('mix','[pause]'),3),longPause:numOf(fieldInput('mix','[long pause]'),6)};
+}
+function applyCompose(s){
+  if(!s||!Object.keys(s).length)return;
+  if(s.title){$('#title').value=s.title;$('#docTitle').textContent=s.title}
+  if(s.author){author=s.author;state.author=s.author;renderAuthor()}
+  if(s.experienceId)state.experienceId=s.experienceId;
+  if(Array.isArray(s.questions)&&s.questions.length){
+    $('#qList').innerHTML='';
+    s.questions.forEach(qa=>{const d=document.createElement('div');d.className='q';
+      d.innerHTML=`<input class="q-input" value="${esc(qa.question)}"><textarea class="field q-answer" placeholder="Test answer">${esc(qa.answer)}</textarea><div class="row-between"><button class="link ai">Write an answer for me</button><button class="link muted rmq">Remove</button></div>`;
+      $('#qList').appendChild(d)});
+    qCount();
   }
-  const custom = document.createElement('option');
-  custom.value = ''; custom.textContent = 'New voice\u2026';
-  sel.appendChild(custom);
-  const match = voices.find(v => v.voice_id === current);
-  sel.value = match ? current : '';
-  if(!current && voices.length){ sel.value = voices[0].voice_id; el('voiceId').value = voices[0].voice_id; }
+  if(s.model)$('#model').value=s.model;
+  if(s.prompt)$('#prompt').value=s.prompt;
+  if(s.primerId)primerId=s.primerId;
+  if(s.engine)$('#engine').value=s.engine;
+  const set=(sec,label,v)=>{const i=fieldInput(sec,label);if(i&&v!==undefined&&v!==null)i.value=v};
+  set('voice','Stability',s.stability);set('voice','Similarity',s.similarity);
+  set('voice','Style',s.style);set('voice','Speed',s.speed);
+  set('mix','Music',s.musicDb);set('mix','Voice',s.voiceDb);
+  set('mix','Fade in',s.fadeIn);set('mix','Fade out',s.fadeOut);
+  set('mix','After primer',s.afterPrimer);
+  set('mix','[pause]',s.pause);set('mix','[long pause]',s.longPause);
+  if(s.mixPy&&$('.mixpy textarea'))$('.mixpy textarea').value=s.mixPy;
+  if(s.trackId)state.trackId=s.trackId;
+  state._voiceId=s.voiceId;state._contextIds=s.contextIds;
 }
-el('voiceSel').addEventListener('change', () => {
-  if(el('voiceSel').value) el('voiceId').value = el('voiceSel').value;
-  else el('voiceId').value = '';
-});
-el('voiceId').addEventListener('input', () => {
-  const match = voices.find(v => v.voice_id === el('voiceId').value.trim());
-  el('voiceSel').value = match ? match.voice_id : '';
-});
-el('voiceSave').addEventListener('click', async () => {
-  const name = el('voiceName').value.trim();
-  const voiceId = el('voiceId').value.trim();
-  if(!name || !voiceId){ alert('need a name and a voice id'); return; }
-  try{
-    await apiJson('/api/bench/voices', {name, voice_id: voiceId});
-    el('voiceName').value = '';
-    await loadVoices();
-    el('voiceSel').value = voiceId;
-  }catch(err){ alert(err.message); }
-});
-el('voiceDelete').addEventListener('click', async () => {
-  const voiceId = el('voiceId').value.trim();
-  const match = voices.find(v => v.voice_id === voiceId);
-  if(!match){ alert('this voice is not saved'); return; }
-  if(!confirm('delete voice ' + match.name + '?')) return;
-  try{ await apiDelete('/api/bench/voices/' + match.id); await loadVoices(); }
-  catch(err){ alert(err.message); }
-});
+$('#save').onclick=async()=>{
+  try{await apiJson('/api/bench/compose',{state:composeState()});ver++;showVer();toast('Saved. Nothing generated.')}
+  catch(err){alert(err.message)}
+};
 
-// ---------------- pause hint mirrors the mix panel ----------------
-function updatePauseHint(){
-  const p = pauseToMs(el('pauseS').value, 3000) / 1000;
-  const lp = pauseToMs(el('longPauseS').value, 6000) / 1000;
-  el('pauseHint').innerHTML = '[pause] ' + p + 's &middot; [long pause] ' + lp + 's &middot; break tags exact, stacking adds up';
-}
-el('pauseS').addEventListener('input', updatePauseHint);
-el('longPauseS').addEventListener('input', updatePauseHint);
-el('addElement').addEventListener('click', () => {});
-
-// ---------------- compose state save and load ----------------
-function collectCompose(){
-  return {
-    questions: state.questions,
-    model: el('modelSel').value,
-    prompt_py: el('promptPy').value,
-    mix_py: el('mixPy').value,
-    context_selected: state.contextSelected,
-    voice_id: el('voiceId').value.trim(),
-    engine: el('engineSel').value,
-    stability: el('stab').value,
-    style: el('styleV').value,
-    boost: el('boostSel').value,
-    balance: el('balance').value,
-    fades: el('fades').value,
-    pause_s: el('pauseS').value,
-    long_pause_s: el('longPauseS').value,
-    music_ref: state.musicRef,
-    music_name: state.musicName
-  };
-}
-function applyCompose(saved){
-  if(!saved || !Object.keys(saved).length) return;
-  if(Array.isArray(saved.questions) && saved.questions.length) state.questions = saved.questions;
-  if(saved.model) el('modelSel').value = saved.model;
-  el('promptPy').value = saved.prompt_py || '';
-  el('mixPy').value = saved.mix_py || '';
-  state.contextSelected = Array.isArray(saved.context_selected) ? saved.context_selected : [];
-  if(saved.voice_id) el('voiceId').value = saved.voice_id;
-  if(saved.engine) el('engineSel').value = saved.engine;
-  if(saved.stability != null && saved.stability !== '') el('stab').value = saved.stability;
-  if(saved.style != null && saved.style !== '') el('styleV').value = saved.style;
-  if(saved.boost) el('boostSel').value = saved.boost;
-  el('balance').value = saved.balance || '';
-  el('fades').value = saved.fades || '';
-  if(saved.pause_s) el('pauseS').value = saved.pause_s;
-  if(saved.long_pause_s) el('longPauseS').value = saved.long_pause_s;
-  state.musicRef = saved.music_ref || '';
-  state.musicName = saved.music_name || '';
-}
-const saveBtn = el('saveBtn');
-saveBtn.addEventListener('click', async () => {
-  try{
-    await apiJson('/api/bench/compose', {state: collectCompose()});
-    saveBtn.textContent = 'Saved \u2713'; saveBtn.disabled = true;
-    setTimeout(() => { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }, 1200);
-  }catch(err){ alert(err.message); }
-});
-
-// ---------------- speech doc, the mockup machinery wired to real data ----------------
-const page = el('page'), pop = el('pop'), docBody = el('docBody');
-const chgcount = el('chgcount');
-function refreshCount(){
-  const ins = page.querySelectorAll('.ins').length, marks = page.querySelectorAll('mark').length;
-  chgcount.textContent = ins + ' change' + (ins === 1 ? '' : 's') + ' \u00B7 ' + marks + ' mark' + (marks === 1 ? '' : 's');
-}
-
-// direct typing appears in red
-page.addEventListener('beforeinput', e => {
-  if(e.inputType === 'insertText' && e.data){
-    e.preventDefault();
-    const sel = getSelection(); if(!sel.rangeCount) return;
-    const r = sel.getRangeAt(0); r.deleteContents();
-    let host = sel.anchorNode; host = host && (host.nodeType === 3 ? host.parentElement : host);
-    if(host && host.closest('.ins')){
-      const t = document.createTextNode(e.data); r.insertNode(t); sel.collapse(t, t.length);
-    }else{
-      const sp = document.createElement('span'); sp.className = 'ins'; sp.textContent = e.data;
-      r.insertNode(sp); sel.collapse(sp.firstChild, sp.firstChild.length);
-    }
-    refreshCount();
-    scheduleDocSave();
-  }
-});
-page.addEventListener('input', () => { refreshCount(); scheduleDocSave(); });
-
-// selection popover
-let savedRange = null, sentiment = null;
-const tU = el('thumbUp'), tD = el('thumbDown');
-function resetPop(){ sentiment = null; tU.classList.remove('on-good'); tD.classList.remove('on-bad'); el('popComment').value = ''; }
-document.addEventListener('mouseup', e => {
-  if(pop.contains(e.target)) return;
-  setTimeout(() => {
-    const sel = getSelection();
-    if(sel.isCollapsed || !page.contains(sel.anchorNode)){ pop.classList.remove('show'); return; }
-    savedRange = sel.getRangeAt(0).cloneRange();
-    const rect = savedRange.getBoundingClientRect();
-    pop.classList.add('show'); resetPop();
-    pop.style.left = Math.max(8, rect.left) + 'px';
-    pop.style.top = (rect.top - 46) + 'px';
-  }, 0);
-});
-tU.addEventListener('click', () => { sentiment = 'good'; tU.classList.add('on-good'); tD.classList.remove('on-bad'); });
-tD.addEventListener('click', () => { sentiment = 'bad'; tD.classList.add('on-bad'); tU.classList.remove('on-good'); });
-el('popSave').addEventListener('click', () => {
-  if(!savedRange) return;
-  const m = document.createElement('mark'); m.className = sentiment || 'good';
-  try{ savedRange.surroundContents(m); }catch(_){ m.appendChild(savedRange.extractContents()); savedRange.insertNode(m); }
-  const c = el('popComment').value.trim();
-  const note = document.createElement('span'); note.className = 'margin-note';
-  note.innerHTML = '<b>' + (sentiment === 'bad' ? 'Bad' : 'Good') + '</b>' + (c ? ' \u2014 ' + esc(c) : '');
-  m.after(note);
-  pop.classList.remove('show'); getSelection().removeAllRanges(); refreshCount();
-  scheduleDocSave();
-});
-
-// reading the doc back out
+/* ---- generate text ---- */
 function renderSpeech(text){
-  page.innerHTML = '';
-  for(const para of String(text || '').split(/\n\s*\n/)){
-    if(!para.trim()) continue;
-    const p = document.createElement('p'); p.textContent = para.trim();
-    page.appendChild(p);
+  $('#updatePrompt').disabled=false;const doc=$('#doc');
+  doc.innerHTML=text.split(/\n\s*\n/).filter(p=>p.trim()).map(p=>'<p>'+esc(p.trim()).replace(/\[(long pause|pause)\]/g,'<span class="tag-p">[$1]</span>')+'</p>').join('');
+  doc.contentEditable='true';$('#gutter').innerHTML='';const b=$('#genMp3');b.disabled=false;b.style.opacity='';
+  $('#player').classList.remove('on');$('#publish').hidden=true;$('#pubBox').classList.remove('on');
+}
+$('#genText').onclick=async()=>{
+  if(!$('#prompt').value.trim()){alert('write the prompt first');return}
+  const b=$('#genText');b.classList.add('busy');b.innerHTML='<span class="spin"></span>Writing\u2026';$('#panel').hidden=true;$('#rail').hidden=false;$('#docV').textContent='#'+ver;
+  const st=$('#status');st.innerHTML='<div>Reading the answer</div><div>Choosing passages from the docs</div><div>Writing the speech</div>';st.classList.add('on');
+  try{
+    const d=await apiJson('/api/bench/write',{questions:questions(),prompt_py:$('#prompt').value,
+      model:$('#model').value,context_ids:contextIds(),experience_id:state.experienceId,
+      title:$('#title').value,author:author});
+    state.experienceId=d.experience_id;state.experimentId=d.experiment_id;ver=d.version;showVer();$('#docV').textContent='#'+ver;
+    renderSpeech(d.speech);
+    toast('Text ready. Select a passage to mark it, or type straight into it.');
+    await loadRuns();
+  }catch(err){alert(err.message)}
+  st.classList.remove('on');b.classList.remove('busy');b.textContent='Generate text';
+};
+
+/* ---- doc marks ---- */
+const pop=$('#pop');let savedRange=null,kind=null;
+document.addEventListener('mouseup',e=>{
+  if(pop.contains(e.target))return;
+  const sel=window.getSelection();
+  if(!sel.rangeCount||sel.isCollapsed||!$('#doc').contains(sel.anchorNode)||$('#doc').contentEditable!=='true'){if(!pop.contains(e.target))pop.classList.remove('on');return}
+  savedRange=sel.getRangeAt(0).cloneRange();kind=null;pop.querySelectorAll('[data-k]').forEach(b=>b.classList.remove('sel'));$('#popNote').value='';
+  const r=savedRange.getBoundingClientRect();pop.style.left=Math.max(12,Math.min(window.innerWidth-360,r.left))+'px';pop.style.top=(r.top-44)+'px';pop.classList.add('on');
+});
+pop.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{kind=b.dataset.k;pop.querySelectorAll('[data-k]').forEach(x=>x.classList.toggle('sel',x===b))});
+$('#popSave').onclick=()=>{
+  if(!savedRange)return;const k=kind||'good';const note=$('#popNote').value.trim();
+  const m=document.createElement('mark');m.className=k;
+  try{m.appendChild(savedRange.extractContents());savedRange.insertNode(m)}catch(err){}
+  const quoted=m.textContent.trim();
+  {const n=document.createElement('div');n.className='note '+k;n.innerHTML='<b>'+(k==='good'?'Good':'Change')+'</b>'+(note?esc(note):'\u201c'+esc(quoted.slice(0,60))+(quoted.length>60?'\u2026':'')+'\u201d');$('#gutter').appendChild(n);positionNotes()}
+  pop.classList.remove('on');window.getSelection().removeAllRanges();saveDoc();
+};
+function positionNotes(){const marks=$$('#doc mark'),notes=$$('#gutter .note');const base=$('#gutter').getBoundingClientRect().top;let last=-999;marks.forEach((m,i)=>{const n=notes[i];if(!n)return;let top=m.getBoundingClientRect().top-base;if(top<last+8)top=last+8;n.style.top=top+'px';last=top+n.offsetHeight})}
+$('#docWrap').addEventListener('scroll',positionNotes);window.addEventListener('resize',positionNotes);
+
+/* typing shows in red */
+$('#doc').addEventListener('beforeinput',e=>{
+  if(e.inputType!=='insertText'||!e.data)return;
+  e.preventDefault();const sel=window.getSelection();if(!sel.rangeCount)return;const r=sel.getRangeAt(0);r.deleteContents();
+  let node=r.startContainer;const inIns=(node.nodeType===3?node.parentElement:node).closest('.ins');
+  if(inIns){const t=document.createTextNode(e.data);r.insertNode(t);r.setStartAfter(t);r.collapse(true)}
+  else{const s=document.createElement('span');s.className='ins';s.textContent=e.data;r.insertNode(s);r.setStart(s.firstChild,s.firstChild.length);r.collapse(true)}
+  sel.removeAllRanges();sel.addRange(r);positionNotes();
+});
+let docTimer=0;
+function saveDoc(){
+  if(!state.experimentId)return;
+  clearTimeout(docTimer);
+  docTimer=setTimeout(()=>{
+    apiJson(`/api/bench/experiments/${state.experimentId}/doc`,
+      {doc_html:$('#doc').innerHTML,speech_text:$('#doc').innerText}).catch(()=>{});
+  },1500);
+}
+$('#doc').addEventListener('input',saveDoc);
+
+/* ---- update prompt ---- */
+$('#updatePrompt').onclick=()=>{
+  const marks=$$('#doc mark'),ins=$$('#doc .ins');
+  if(!marks.length&&!ins.length){toast('Nothing marked or edited yet.');return}
+  const notes=$$('#gutter .note');let add='\n\nRevision from the doc:';
+  marks.forEach((m,i)=>{add+='\n- '+(m.classList.contains('good')?'Keep':'Change')+': \u201c'+m.textContent.trim().slice(0,70)+'\u201d'+(notes[i]?' \u2014 '+notes[i].textContent.replace(/^(Good|Change)/,'').trim():'')});
+  if(ins.length)add+='\n- Added by hand: \u201c'+ins.map(s=>s.textContent).join(' ').trim().slice(0,90)+'\u201d';
+  $('#prompt').value+=add;toast('Prompt updated from '+marks.length+' mark'+(marks.length===1?'':'s')+' and '+ins.length+' edit'+(ins.length===1?'':'s')+'. Generate the text again.');
+  $$('.sec').forEach(x=>x.classList.remove('open'));$('[data-sec=prompt]').classList.add('open');
+};
+
+/* ---- mp3 ---- */
+function speechText(){return $('#doc').innerText.trim()}
+$('#genMp3').onclick=async()=>{
+  const speech=speechText();
+  if(!speech){alert('no speech to make, generate the text first');return}
+  if(!$('#voice').value){alert('pick a voice first');return}
+  const b=$('#genMp3');b.classList.add('busy');b.innerHTML='<span class="spin"></span>Making the mp3\u2026';
+  const fd=new FormData();
+  fd.append('topic',$('#title').value);
+  fd.append('questions',JSON.stringify(questions()));
+  fd.append('speech',speech);
+  fd.append('prompt_py',$('#prompt').value);
+  fd.append('mix_py',$('.mixpy textarea')?$('.mixpy textarea').value:'');
+  fd.append('model',$('#model').value);
+  fd.append('voice_id',$('#voice').value);
+  fd.append('stability',numOf(fieldInput('voice','Stability'),0.45));
+  fd.append('similarity',numOf(fieldInput('voice','Similarity'),0.80));
+  fd.append('style',numOf(fieldInput('voice','Style'),0.20));
+  fd.append('speed',numOf(fieldInput('voice','Speed'),0.92));
+  fd.append('boost','true');
+  fd.append('tts_provider',engineValue());
+  fd.append('experiment_id',state.experimentId||0);
+  fd.append('balance_db',numOf(fieldInput('mix','Music'),-18));
+  fd.append('fade_in_s',numOf(fieldInput('mix','Fade in'),6));
+  fd.append('fade_out_s',numOf(fieldInput('mix','Fade out'),10));
+  fd.append('pause_ms',Math.round(numOf(fieldInput('mix','[pause]'),3)*1000));
+  fd.append('long_pause_ms',Math.round(numOf(fieldInput('mix','[long pause]'),6)*1000));
+  fd.append('after_primer_s',numOf(fieldInput('mix','After primer'),4));
+  if(primerId)fd.append('primer_id',primerId);
+  if(state.trackId)fd.append('music_track_id',state.trackId);
+  try{
+    const started=await apiForm('/api/bench/make',fd);
+    const run=await waitForJob(started.job_id);
+    state.experimentId=run.id;ver=run.version||ver;showVer();$('#docV').textContent='#'+ver;
+    showRunPlayer(run);
+    $('#publish').hidden=false;
+    await loadRuns();
+    toast('mp3 ready: primer, then speech over the music.');
+  }catch(err){alert(err.message)}
+  b.classList.remove('busy');b.textContent='Generate mp3';
+};
+async function waitForJob(jobId){
+  for(let i=0;i<900;i++){
+    await new Promise(r=>setTimeout(r,2000));
+    const s=await apiGet('/api/bench/make/'+jobId);
+    if(s.state==='done')return s.experiment;
+    if(s.state==='error')throw new Error(s.error||'the mp3 failed');
   }
-  refreshCount();
+  throw new Error('the mp3 is taking longer than expected, check the runs list');
 }
-function pageText(){
-  const clone = page.cloneNode(true);
-  clone.querySelectorAll('.margin-note').forEach(n => n.remove());
-  const parts = [];
-  clone.querySelectorAll('p').forEach(p => { if(p.textContent.trim()) parts.push(p.textContent.trim()); });
-  if(!parts.length && clone.textContent.trim()) parts.push(clone.textContent.trim());
-  return parts.join('\n\n');
+function showRunPlayer(run){
+  const url=run.mix_url||run.voice_url;
+  if(!url)return;
+  const p=$('#player');p.classList.add('on');
+  const tl=$('#timeline');
+  const total=run.duration_s||0;
+  const pct=total&&run.primer_s?Math.max(2,Math.min(90,100*run.primer_s/total)):0;
+  if(pct){
+    tl.querySelector('.seg.primer').style.width=pct+'%';
+    tl.querySelector('.seg.speech').style.left=(pct+1)+'%';
+    tl.querySelector('.lbl.p').textContent='primer '+fmtTime(run.primer_s);
+    tl.querySelector('.lbl.s').textContent='speech '+fmtTime(total-run.primer_s);
+    tl.querySelector('.lbl.s').style.left=(pct+1)+'%';
+  }
+  p.querySelector('.dur').textContent=total?fmtTime(total):'';
+  $('#bigPlay').onclick=()=>{playUrl(url,$('#bigPlay'));tl.classList.toggle('playing')};
 }
-function pageMarks(){
-  const out = [];
-  page.querySelectorAll('mark').forEach(m => {
-    let comment = '';
-    const next = m.nextElementSibling;
-    if(next && next.classList.contains('margin-note')){
-      comment = next.textContent.replace(/^(Good|Bad)\s*(\u2014|-)?\s*/, '').trim();
-    }
-    out.push({sentiment: m.classList.contains('bad') ? 'bad' : 'good', text: m.textContent.trim(), comment});
+
+/* ---- runs ---- */
+async function loadRuns(){
+  const d=await apiGet('/api/bench/experiments');state.runs=d.experiments;
+  const box=$('#runs');box.innerHTML='';
+  if(!d.experiments.length){box.innerHTML='<div class="hint">No runs yet. Generate text to start.</div>';return}
+  d.experiments.forEach(run=>box.appendChild(runCard(run)));
+}
+function runCard(run){
+  const d=document.createElement('div');d.className='run';d.dataset.id=run.id;
+  const when=new Date(run.created_at).toLocaleString('en-GB',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const url=run.mix_url||run.voice_url;
+  const mini=url?`<div class="mini"><button class="play">\u25b6</button><div class="bar"><i></i></div><span class="dur">${run.duration_s?fmtTime(run.duration_s):''}</span></div>`:'';
+  d.innerHTML=`<div class="run-top"><span class="run-title">${esc(run.title||'Untitled')}<span class="vn">#${run.version||1}</span></span><span class="run-date">${esc(when)}</span></div>
+${mini}<div class="tags"><button class="tag rej${run.tag==='Reject'?' on':''}">Reject</button><button class="tag good${run.tag==='Good'?' on':''}">Good</button><button class="tag best${run.tag==='Best so far'?' on':''}">Best so far</button></div>
+<div class="comment">${run.comment?`<div class="saved">${esc(run.comment)}</div>`:'<input placeholder="Comment">'}</div>
+<div class="run-actions"><button class="link use">Use</button><button class="link zip">Download zip</button><button class="link muted logbtn">Run log</button><button class="link muted del">Delete</button></div>
+<pre class="log">${esc(run.run_log||'no log')}</pre>`;
+  if(url)d.querySelector('.play').onclick=e=>{e.preventDefault();playUrl(url,e.target);d.querySelector('.bar').classList.toggle('playing')};
+  d.querySelector('.zip').onclick=()=>{window.location='/api/bench/experiments/'+run.id+'/zip'};
+  d.querySelector('.use').onclick=()=>useRun(run);
+  d.querySelector('.del').onclick=async()=>{
+    if(!confirm('Delete this run?'))return;
+    try{await apiDelete('/api/bench/experiments/'+run.id);await loadRuns();toast('Run deleted.')}catch(err){alert(err.message)}};
+  return d;
+}
+document.addEventListener('click',async e=>{
+  const tag=e.target.closest('.tag');
+  if(tag){const card=tag.closest('.run');if(!card)return;
+    const on=tag.classList.contains('on');
+    card.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
+    if(!on)tag.classList.add('on');
+    const value=on?'':tag.textContent.trim();
+    try{await apiJson(`/api/bench/experiments/${card.dataset.id}/tag`,{tag:value})}catch(err){alert(err.message)}
+    return}
+  const lb=e.target.closest('.logbtn');if(lb){lb.closest('.run').classList.toggle('logopen');return}
+  if(e.target.closest('.copy')){
+    const link=e.target.closest('.pub-link,.published-box');
+    const a=link?link.querySelector('a'):null;
+    if(a&&navigator.clipboard)navigator.clipboard.writeText(a.textContent.trim().indexOf('http')===0?a.textContent.trim():a.href);
+    toast('Link copied');return}
+  const saved=e.target.closest('.comment .saved');
+  if(saved){const inp=document.createElement('input');inp.value=saved.textContent;saved.replaceWith(inp);inp.focus();return}
+});
+document.addEventListener('keydown',async e=>{
+  if(e.key==='Enter'&&e.target.matches('.comment input')){
+    e.preventDefault();const card=e.target.closest('.run');const value=e.target.value.trim();
+    const d=document.createElement('div');d.className='saved';d.textContent=value||'\u2014';e.target.replaceWith(d);
+    if(card)try{await apiJson(`/api/bench/experiments/${card.dataset.id}/comment`,{comment:value})}catch(err){alert(err.message)}
+  }
+});
+function useRun(run){
+  state.experimentId=run.id;state.experienceId=run.experience_id||0;
+  ver=run.version||1;showVer();$('#docV').textContent='#'+ver;
+  $('#title').value=run.title||'';$('#docTitle').textContent=run.title||'Untitled';
+  if(run.questions&&run.questions.length){
+    $('#qList').innerHTML='';
+    run.questions.forEach(qa=>{const d=document.createElement('div');d.className='q';
+      d.innerHTML=`<input class="q-input" value="${esc(qa.question||'')}"><textarea class="field q-answer" placeholder="Test answer">${esc(qa.answer||'')}</textarea><div class="row-between"><button class="link ai">Write an answer for me</button><button class="link muted rmq">Remove</button></div>`;
+      $('#qList').appendChild(d)});
+    qCount();
+  }
+  if(run.model)$('#model').value=run.model;
+  if(run.prompt_py)$('#prompt').value=run.prompt_py;
+  if(run.mix_py&&$('.mixpy textarea'))$('.mixpy textarea').value=run.mix_py;
+  if(run.primer_id){primerId=run.primer_id;renderPrimers();selectPrimer(run.primer_id)}
+  if(run.music_track_id){selectTrack(run.music_track_id);loadMusic().then(()=>selectTrack(run.music_track_id))}
+  if(run.voice_id){$('#voice').value=run.voice_id;voiceSum()}
+  const set=(sec,label,v)=>{const i=fieldInput(sec,label);if(i&&v!==null&&v!==undefined)i.value=v};
+  set('voice','Stability',run.stability);set('voice','Style',run.style);
+  set('mix','Music',run.balance_db);set('mix','Fade in',run.fade_in_s);set('mix','Fade out',run.fade_out_s);
+  set('mix','After primer',run.after_primer_s);
+  if(run.pause_ms)set('mix','[pause]',run.pause_ms/1000);
+  if(run.long_pause_ms)set('mix','[long pause]',run.long_pause_ms/1000);
+  const ids=(run.context_ids||'').split(',').filter(Boolean);
+  $$('#docs input[type=checkbox]').forEach(c=>{c.checked=ids.indexOf(c.dataset.id)>-1});budget();
+  if(run.doc_html){$('#doc').innerHTML=run.doc_html;$('#doc').contentEditable='true';$('#updatePrompt').disabled=false;
+    const b=$('#genMp3');b.disabled=false;b.style.opacity='';positionNotes()}
+  else if(run.speech_text){renderSpeech(run.speech_text)}
+  if(run.mix_url||run.voice_url){showRunPlayer(run);$('#publish').hidden=false}
+  $('#panel').hidden=true;$('#rail').hidden=false;
+  toast(`Restored #${run.version||1}: title, primer, questions, prompt, docs, voice, music, mix.`);
+}
+
+/* ---- publish ---- */
+$('#publish').onclick=async()=>{
+  if(!state.experimentId){toast('make the mp3 first');return}
+  const b=$('#publish');b.classList.add('busy');b.innerHTML='<span class="spin"></span>Publishing\u2026';
+  try{
+    const pub=await apiJson('/api/bench/publish',{experiment_id:state.experimentId,author:author});
+    state.publishedUrl=pub.url;
+    b.classList.remove('busy');b.textContent='Published';b.style.opacity='.6';
+    $('#pubLink').textContent=pub.url.replace(/^https?:\/\//,'');$('#pubLink').href=pub.url;
+    updateOpen();$('#pubBox').classList.add('on');
+    await loadPublished();
+    $('#panel').hidden=false;$('#rail').hidden=true;
+    $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='published'));
+    $$('.tabpane').forEach(x=>x.classList.toggle('active',x.id==='published'));
+    toast('Published. Anyone with the link can try it.');
+  }catch(err){b.classList.remove('busy');b.textContent='Publish';alert(err.message)}
+};
+async function loadPublished(){
+  const d=await apiGet('/api/bench/published');state.published=d.published;
+  const box=$('#published');box.innerHTML='';
+  if(!d.published.length){box.innerHTML='<div class="hint">Nothing published yet.</div>';return}
+  d.published.forEach(pub=>{
+    const when=new Date(pub.created_at).toLocaleDateString('en-GB',{month:'short',day:'numeric'});
+    const people=pub.people.length?pub.people.map(p=>{
+      const chip=p.chills==='yes'?'<span class="chip">Chills</span>':(p.played?'<span class="chip quiet">Played</span>':'<span class="chip quiet">Signed up</span>');
+      const said=p.chills_about?`<span class="said">${esc(p.chills_about)}</span>`:(p.answer?`<span class="said">${esc(p.answer)}</span>`:'');
+      const date=new Date(p.created_at).toLocaleDateString('en-GB',{month:'short',day:'numeric'});
+      return `<div class="person"><span>${esc(p.name||'Someone')}${chip}</span><span class="pd">${date}</span>${said}</div>`;
+    }).join(''):'<div class="person" style="color:var(--muted)"><span>Nobody yet. Send the link.</span></div>';
+    const d2=document.createElement('div');d2.className='pub';
+    d2.innerHTML=`<div class="pub-title">${esc(pub.title||'Untitled')}</div>
+<div class="pub-by">by ${esc(pub.author)}</div>
+<div class="pub-nums"><div><b>${pub.signed_up}</b><small>signed up</small></div><div><b>${pub.played}</b><small>played</small></div><div class="chills"><b>${pub.got_chills}</b><small>got chills</small></div></div>
+<div class="pub-link"><a href="${esc(pub.url)}" target="_blank" rel="noopener">${esc(pub.url.replace(/^https?:\/\//,''))}</a><button class="link muted copy">Copy</button><span style="color:var(--muted)">${when}</span></div>
+<div class="pub-contents">${esc(pub.contents)}${pub.questions.length&&pub.questions[0].question?' \u00b7 <b>Question</b> '+esc(pub.questions[0].question):''}</div>
+<div class="people">${people}</div>`;
+    box.appendChild(d2);
   });
-  return out;
-}
-function pageEdits(){
-  const out = [];
-  page.querySelectorAll('.ins').forEach(s => { if(s.textContent.trim()) out.push(s.textContent.trim()); });
-  return out;
-}
-let lastStage = '';
-function updateMeta(stage){
-  lastStage = stage || lastStage;
-  if(!state.experimentId){ el('docMeta').textContent = 'no run yet'; return; }
-  const shown = seqById[state.experimentId] || state.experimentId;
-  el('docMeta').textContent = '#' + shown + ' \u00B7 day ' + state.dayNumber + ' \u00B7 ' + lastStage;
 }
 
-// doc autosave, marks and edits survive a reload
-let docSaveTimer = null;
-function scheduleDocSave(){
-  if(!state.experimentId) return;
-  clearTimeout(docSaveTimer);
-  docSaveTimer = setTimeout(async () => {
-    try{
-      await apiJson('/api/bench/experiments/' + state.experimentId + '/doc',
-                    {doc_html: page.innerHTML, speech_text: pageText()});
-    }catch(_){ }
-  }, 1500);
-}
-
-// ---------------- generate text ----------------
-const genText = el('genText');
-genText.addEventListener('click', async () => {
-  if(genText.disabled) return;
-  if(!el('promptPy').value.trim()){ alert('paste a prompt file first'); return; }
-  genText.disabled = true; genText.innerHTML = '<span class="spinner"></span>Generating\u2026';
-  docBody.classList.add('generating');
+/* ---- boot ---- */
+(async function boot(){
   try{
-    const out = await apiJson('/api/bench/write', {
-      questions: state.questions,
-      prompt_py: el('promptPy').value,
-      model: el('modelSel').value,
-      context_ids: state.contextSelected.join(',')
-    });
-    state.experimentId = out.experiment_id;
-    state.dayNumber = 1;
-    state.originalSpeech = out.speech;
-    renderSpeech(out.speech);
-    el('mp3row').classList.remove('show');
-    updateMeta('draft');
-    await loadExperiments();
-  }catch(err){ alert(err.message); }
-  genText.disabled = false; genText.textContent = 'Generate text';
-  docBody.classList.remove('generating');
-});
-
-// ---------------- update prompt ----------------
-const updateBtn = el('updatePrompt');
-updateBtn.addEventListener('click', async () => {
-  if(updateBtn.disabled) return;
-  const marks = pageMarks(), edits = pageEdits();
-  const finalText = pageText();
-  if(!marks.length && !edits.length && finalText === state.originalSpeech.trim()){
-    alert('mark or edit the speech first'); return;
-  }
-  updateBtn.disabled = true; updateBtn.innerHTML = '<span class="spinner"></span>Updating\u2026';
-  try{
-    const out = await apiJson('/api/bench/update_prompt', {
-      experiment_id: state.experimentId,
-      model: el('modelSel').value,
-      prompt_py: el('promptPy').value,
-      original_speech: state.originalSpeech,
-      final_speech: finalText,
-      marks, edits,
-      doc_html: page.innerHTML
-    });
-    el('promptPy').value = out.prompt_py;
-    updateBtn.textContent = 'Prompt updated \u2713';
-    setTimeout(() => { updateBtn.textContent = 'Update prompt'; updateBtn.disabled = false; }, 1500);
-    return;
-  }catch(err){ alert(err.message); }
-  updateBtn.textContent = 'Update prompt'; updateBtn.disabled = false;
-});
-
-// ---------------- players ----------------
-let currentAudio = null, currentPlayerEl = null;
-function fmtTime(seconds){
-  if(!isFinite(seconds)) return '0:00';
-  const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
-  return m + ':' + String(s).padStart(2, '0');
-}
-function attachPlayer(playerEl, url){
-  const btn = playerEl.querySelector('.play');
-  const track = playerEl.querySelector('.track');
-  const t = playerEl.querySelector('.t');
-  let audio = null;
-  track.style.cursor = 'pointer';
-  function paint(){
-    t.textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(audio.duration);
-    const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-    track.style.background = 'linear-gradient(to right, var(--ink) ' + pct + '%, var(--line) ' + pct + '%)';
-  }
-  function ensureAudio(){
-    if(!audio){
-      audio = new Audio(url);
-      audio.addEventListener('loadedmetadata', () => { t.textContent = '0:00 / ' + fmtTime(audio.duration); });
-      audio.addEventListener('timeupdate', paint);
-      audio.addEventListener('seeked', paint);
-      audio.addEventListener('ended', () => { btn.innerHTML = '&#9654;'; });
-    }
-    return audio;
-  }
-  function stopOthers(){
-    if(currentAudio && currentPlayerEl !== playerEl){
-      currentAudio.pause();
-      currentPlayerEl.querySelector('.play').innerHTML = '&#9654;';
-    }
-  }
-  btn.addEventListener('click', () => {
-    if(!url){ return; }
-    ensureAudio();
-    stopOthers();
-    if(audio.paused){ audio.play(); btn.textContent = '\u23F8'; currentAudio = audio; currentPlayerEl = playerEl; }
-    else{ audio.pause(); btn.innerHTML = '&#9654;'; }
-  });
-  track.addEventListener('click', e => {
-    if(!url) return;
-    const rect = track.getBoundingClientRect();
-    if(!rect.width) return;
-    const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const a = ensureAudio();
-    const seek = () => { a.currentTime = fraction * a.duration; };
-    if(isFinite(a.duration) && a.duration > 0) seek();
-    else a.addEventListener('loadedmetadata', seek, {once: true});
-  });
-}
-
-// ---------------- generate mp3 ----------------
-const genmp3 = el('genmp3');
-genmp3.addEventListener('click', async () => {
-  if(genmp3.disabled) return;
-  const speech = pageText();
-  if(!speech){ alert('no speech to make, generate or paste text first'); return; }
-  if(!el('voiceId').value.trim()){ alert('set a voice id first'); return; }
-  genmp3.disabled = true; genmp3.innerHTML = '<span class="spinner"></span>Generating\u2026';
-  try{
-    const fd = new FormData();
-    fd.append('questions', JSON.stringify(state.questions));
-    fd.append('speech', speech);
-    fd.append('prompt_py', el('promptPy').value);
-    fd.append('mix_py', el('mixPy').value);
-    fd.append('model', el('modelSel').value);
-    fd.append('voice_id', el('voiceId').value.trim());
-    fd.append('stability', firstNumber(el('stab').value) == null ? '0.5' : firstNumber(el('stab').value));
-    fd.append('style', firstNumber(el('styleV').value) == null ? '0' : firstNumber(el('styleV').value));
-    fd.append('boost', el('boostSel').value === 'on' ? 'true' : 'false');
-    fd.append('tts_provider', el('engineSel').value);
-    fd.append('experiment_id', state.experimentId || 0);
-    const balance = firstNumber(el('balance').value);
-    if(balance != null) fd.append('balance_db', balance);
-    const [fadeIn, fadeOut] = twoNumbers(el('fades').value);
-    if(fadeIn != null) fd.append('fade_in_s', fadeIn);
-    if(fadeOut != null) fd.append('fade_out_s', fadeOut);
-    fd.append('pause_ms', pauseToMs(el('pauseS').value, 3000));
-    fd.append('long_pause_ms', pauseToMs(el('longPauseS').value, 6000));
-    if(musicUpload) fd.append('music', musicUpload);
-    else if(state.musicRef) fd.append('music_ref', state.musicRef);
-    const exp = await apiForm('/api/bench/make', fd);
-    state.experimentId = exp.id;
-    state.dayNumber = exp.day_number || 1;
-    if(!state.originalSpeech) state.originalSpeech = exp.speech_text;
-    state.musicRef = exp.music_file || state.musicRef;
-    state.musicName = exp.music_filename || state.musicName;
-    musicUpload = null; el('musicInput').value = '';
-    renderMusic();
-    updateMeta('mp3 ready');
-    const row = el('mp3row');
-    row.classList.add('show');
-    const oldPlayer = el('docPlayer');
-    const fresh = oldPlayer.cloneNode(true);
-    oldPlayer.replaceWith(fresh);
-    fresh.id = 'docPlayer';
-    attachPlayer(fresh, exp.mix_url || exp.voice_url);
-    await loadExperiments();
-  }catch(err){ alert(err.message); }
-  genmp3.disabled = false; genmp3.textContent = 'Generate mp3';
-});
-
-// publish is on screen but not wired yet
-const pubBtn = el('publish');
-pubBtn.addEventListener('click', () => {
-  const old = pubBtn.textContent;
-  pubBtn.textContent = 'Not wired yet';
-  setTimeout(() => { pubBtn.textContent = old; }, 1400);
-});
-
-// ---------------- run cards ----------------
-async function loadExperiments(){
-  const out = await apiGet('/api/bench/experiments');
-  experiments = out.experiments;
-  seqById = {};
-  [...experiments].sort((a, b) => a.id - b.id).forEach((e, i) => { seqById[e.id] = i + 1; });
-  renderCards();
-  updateMeta(lastStage);
-}
-function cardDate(iso){
-  const d = new Date(iso);
-  if(isNaN(d)) return '';
-  const pad = n => String(n).padStart(2, '0');
-  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-}
-function shortModel(model){
-  for(const name of ['opus', 'fable', 'sonnet', 'haiku']) if((model || '').includes(name)) return name;
-  return model || '';
-}
-function renderCards(){
-  const wrap = el('runcards');
-  wrap.innerHTML = '';
-  const shown = experiments.filter(e => filterTag === 'all' || e.tag === filterTag);
-  el('runsEmpty').hidden = shown.length > 0;
-  for(const exp of shown){
-    const card = document.createElement('div');
-    card.className = 'hcard' + (exp.tag === 'Best so far' ? ' best' : exp.tag === 'Good' ? ' good' : exp.tag === 'Reject' ? ' rejected' : '');
-    const title = exp.title || exp.topic || 'untitled';
-    let html = '<div class="h-title">' + esc(title) + '</div>'
-      + '<div class="id-row">#' + (seqById[exp.id] || exp.id) + ' \u00B7 day ' + (exp.day_number || 1) + ' \u00B7 ' + cardDate(exp.created_at) + '</div>';
-    const audioUrl = exp.mix_url || exp.voice_url;
-    if(audioUrl) html += '<div class="player"><button class="play">&#9654;</button><div class="track"></div><span class="t">0:00</span></div>';
-    html += '<div class="tagrow">'
-      + '<button class="tag' + (exp.tag === 'Reject' ? ' on-rej' : '') + '" data-tag="Reject">Reject</button>'
-      + '<button class="tag' + (exp.tag === 'Good' ? ' on-good' : '') + '" data-tag="Good">Good</button>'
-      + '<button class="tag' + (exp.tag === 'Best so far' ? ' on-best' : '') + '" data-tag="Best so far">Best so far</button>'
-      + '</div>';
-    if(exp.comment){
-      html += '<div class="comment-saved">' + esc(exp.comment) + '<a class="edit" href="#">edit</a></div>';
-    }else{
-      html += '<div class="comment-input"><input placeholder="Comment"><button class="btn small">Save</button></div>';
-    }
-    html += '<div class="hactions"><button data-act="use">Use</button><button data-act="zip">Download zip</button><button data-act="del">Delete</button></div>';
-
-    const logLines = [];
-    if(exp.validation) logLines.push('<span class="warn">validate(): ' + esc(exp.validation.split('\n').join(' \u00B7 ')) + '</span>');
-    const settingsBits = [];
-    if(exp.voice_id) settingsBits.push('voice ' + esc(exp.voice_id.slice(0, 6)) + '\u2026');
-    settingsBits.push(exp.tts_provider === 'eleven_v2' ? 'eleven v2' : 'eleven v3');
-    if(exp.stability != null) settingsBits.push('stability ' + exp.stability);
-    if(exp.model) settingsBits.push(shortModel(exp.model));
-    if(exp.word_count) settingsBits.push(exp.word_count + ' words');
-    if(exp.music_filename) settingsBits.push(esc(exp.music_filename));
-    logLines.push(settingsBits.join(', '));
-    if(exp.run_log) logLines.push('<br>' + esc(exp.run_log).split('\n').join('<br>'));
-    logLines.push('server id ' + exp.id);
-    html += '<details class="runlog"><summary>Run log</summary><div class="body">' + logLines.join('<br>') + '</div></details>';
-
-    card.innerHTML = html;
-    if(audioUrl) attachPlayer(card.querySelector('.player'), audioUrl);
-
-    card.querySelectorAll('.tag').forEach(btn => btn.addEventListener('click', async () => {
-      const tag = btn.dataset.tag === exp.tag ? '' : btn.dataset.tag;
-      try{ await apiJson('/api/bench/experiments/' + exp.id + '/tag', {tag}); await loadExperiments(); }
-      catch(err){ alert(err.message); }
-    }));
-
-    const commentInput = card.querySelector('.comment-input input');
-    if(commentInput){
-      card.querySelector('.comment-input .btn').addEventListener('click', async () => {
-        try{ await apiJson('/api/bench/experiments/' + exp.id + '/comment', {comment: commentInput.value}); await loadExperiments(); }
-        catch(err){ alert(err.message); }
-      });
-      commentInput.addEventListener('keydown', e => { if(e.key === 'Enter') card.querySelector('.comment-input .btn').click(); });
-    }
-    const editLink = card.querySelector('.comment-saved .edit');
-    if(editLink) editLink.addEventListener('click', e => {
-      e.preventDefault();
-      const saved = card.querySelector('.comment-saved');
-      const replacement = document.createElement('div');
-      replacement.className = 'comment-input';
-      replacement.innerHTML = '<input placeholder="Comment"><button class="btn small">Save</button>';
-      replacement.querySelector('input').value = exp.comment;
-      replacement.querySelector('.btn').addEventListener('click', async () => {
-        try{ await apiJson('/api/bench/experiments/' + exp.id + '/comment', {comment: replacement.querySelector('input').value}); await loadExperiments(); }
-        catch(err){ alert(err.message); }
-      });
-      saved.replaceWith(replacement);
-      replacement.querySelector('input').focus();
-    });
-
-    card.querySelector('[data-act=use]').addEventListener('click', () => useExperiment(exp));
-    card.querySelector('[data-act=zip]').addEventListener('click', () => { window.location = '/api/bench/experiments/' + exp.id + '/zip'; });
-    card.querySelector('[data-act=del]').addEventListener('click', async () => {
-      if(!confirm('delete run #' + exp.id + '?')) return;
-      try{
-        await apiDelete('/api/bench/experiments/' + exp.id);
-        if(state.experimentId === exp.id){ state.experimentId = 0; updateMeta(''); }
-        await loadExperiments();
-      }catch(err){ alert(err.message); }
-    });
-
-    wrap.appendChild(card);
-  }
-}
-
-// use restores the whole run into the bench
-function useExperiment(exp){
-  if(Array.isArray(exp.questions) && exp.questions.length) state.questions = exp.questions;
-  else if(exp.topic) state.questions = [{question: 'What do you want to meditate about', answer: exp.topic}];
-  renderQuestions();
-  if(exp.model) el('modelSel').value = exp.model;
-  el('promptPy').value = exp.prompt_py || '';
-  el('mixPy').value = exp.mix_py || '';
-  state.contextSelected = String(exp.context_ids || '').split(',').filter(x => x).map(Number);
-  renderContext();
-  if(exp.voice_id){ el('voiceId').value = exp.voice_id; renderVoices(); }
-  el('engineSel').value = exp.tts_provider === 'eleven_v2' ? 'eleven_v2' : 'elevenlabs';
-  if(exp.stability != null) el('stab').value = exp.stability;
-  if(exp.style != null) el('styleV').value = exp.style;
-  el('boostSel').value = exp.boost ? 'on' : 'off';
-  el('balance').value = exp.balance_db != null ? exp.balance_db + ' dB' : '';
-  el('fades').value = (exp.fade_in_s != null || exp.fade_out_s != null)
-    ? (exp.fade_in_s != null ? exp.fade_in_s : 0) + 's / ' + (exp.fade_out_s != null ? exp.fade_out_s : 0) + 's' : '';
-  el('pauseS').value = ((exp.pause_ms != null ? exp.pause_ms : 3000) / 1000) + 's';
-  el('longPauseS').value = ((exp.long_pause_ms != null ? exp.long_pause_ms : 6000) / 1000) + 's';
-  updatePauseHint();
-  musicUpload = null; el('musicInput').value = '';
-  state.musicRef = exp.music_file || '';
-  state.musicName = exp.music_filename || '';
-  renderMusic();
-  state.experimentId = exp.id;
-  state.dayNumber = exp.day_number || 1;
-  state.originalSpeech = exp.speech_text || '';
-  if(exp.doc_html) { page.innerHTML = exp.doc_html; refreshCount(); }
-  else renderSpeech(exp.speech_text || '');
-  const audioUrl = exp.mix_url || exp.voice_url;
-  const row = el('mp3row');
-  if(audioUrl){
-    row.classList.add('show');
-    const oldPlayer = el('docPlayer');
-    const fresh = oldPlayer.cloneNode(true);
-    oldPlayer.replaceWith(fresh);
-    fresh.id = 'docPlayer';
-    attachPlayer(fresh, audioUrl);
-  }else row.classList.remove('show');
-  updateMeta(audioUrl ? 'mp3 ready' : 'draft');
-  document.querySelector('.compose').scrollTop = 0;
-}
-
-// ---------------- chrome from the mockup ----------------
-el('histClose').addEventListener('click', () => document.body.classList.add('hist-closed'));
-el('histReopen').addEventListener('click', () => document.body.classList.remove('hist-closed'));
-
-document.querySelectorAll('.ltab').forEach(t => t.addEventListener('click', () => {
-  document.querySelectorAll('.ltab').forEach(x => x.classList.remove('on')); t.classList.add('on');
-  el('tab-history').hidden = t.dataset.tab !== 'history';
-  el('tab-published').hidden = t.dataset.tab !== 'published';
-}));
-
-document.querySelectorAll('.hfilter').forEach(f => f.addEventListener('click', () => {
-  document.querySelectorAll('.hfilter').forEach(x => x.classList.remove('on')); f.classList.add('on');
-  filterTag = f.dataset.filter;
-  renderCards();
-}));
-
-document.querySelectorAll('details.sec').forEach(d => d.addEventListener('toggle', () => {
-  if(d.open) document.querySelectorAll('details.sec').forEach(o => { if(o !== d) o.open = false; });
-}));
-
-// ---------------- boot ----------------
-async function boot(){
-  renderQuestions();
-  renderMusic();
-  refreshCount();
-  try{
-    const saved = await apiGet('/api/bench/compose');
+    const saved=await apiGet('/api/bench/compose');
     applyCompose(saved.state);
-  }catch(_){ }
-  renderQuestions();
-  renderMusic();
-  updatePauseHint();
-  try{ await loadVoices(); }catch(err){ console.error(err); }
-  try{ await loadContext(); }catch(err){ console.error(err); }
-  try{ await loadExperiments(); }catch(err){ console.error(err); }
-}
-boot();
+    await Promise.all([loadPrimers(),loadMusic(),loadVoices(),loadDocs()]);
+    renderPrimers();
+    if(primerId)selectPrimer(primerId);else if(PRIMERS.length)selectPrimer(PRIMERS[0].id);
+    if(state.trackId)selectTrack(state.trackId);
+    if(state._voiceId){$('#voice').value=state._voiceId;voiceSum()}
+    if(state._contextIds){const ids=state._contextIds.split(',').filter(Boolean);
+      $$('#docs input[type=checkbox]').forEach(c=>{c.checked=ids.indexOf(c.dataset.id)>-1});budget()}
+    await loadRuns();await loadPublished();
+    showVer();qCount();
+  }catch(err){console.error(err);toast('could not load: '+err.message)}
+})();
 </script>
 </body>
 </html>
